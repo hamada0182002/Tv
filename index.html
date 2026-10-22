@@ -32,6 +32,21 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 .dd{font-size:22px;line-height:1.6;color:#d6dbe3;max-height:190px;overflow:hidden;margin-bottom:16px}
 .db .it{width:60%;border-radius:10px;margin-bottom:10px;background:rgba(255,255,255,.1)}
 .db .it.sel{background:#e8a317}
+.tr{display:flex;margin:14px 20px 0}
+.tl{flex:1;margin:0 7px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;font-size:32px;font-weight:bold;color:#fff}
+.tl.on{box-shadow:0 0 0 6px #fff}
+.tl .tn{margin-top:10px}
+.t1{background:linear-gradient(160deg,#2fe0b4,#1d5bd8);flex:1.25}
+.t2{background:linear-gradient(135deg,#ee3f57,#f2a93b)}
+.t3{background:linear-gradient(135deg,#7a3cf0,#2a79e8)}
+.t4{background:#2fbf86;font-size:26px}
+.ex{text-align:center;font-size:24px;margin-top:16px;color:#cfd6e0}
+#rsm{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:60}
+#rbox{margin:12% auto 0;width:56%}
+#rtt{font-size:32px;font-weight:bold;margin-bottom:10px}
+#rq{font-size:26px;color:#d6dbe3;margin-bottom:22px}
+#rbox .it{border-radius:10px;margin-bottom:12px;background:rgba(255,255,255,.12)}
+#rbox .it.sel{background:#e8a317}
 #hbk{right:20px}#pu{left:20px}#pd2{left:96px}
 .it{height:56px;line-height:56px;padding:0 24px;box-sizing:border-box;font-size:28px;border-bottom:1px solid #222c39;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .it:hover{background:#34445a}
@@ -65,6 +80,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 <div id="app">
   <div id="hdr"><span class="rb" id="hbk">→</span><span id="ttl2"></span><span class="rb" id="pu"><svg viewBox="0 0 24 24" width="34" height="34" style="vertical-align:middle"><polyline points="5,16 12,8 19,16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="rb" id="pd2"><svg viewBox="0 0 24 24" width="34" height="34" style="vertical-align:middle"><polyline points="5,8 12,16 19,8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="rb" id="sb"><svg viewBox="0 0 24 24" width="34" height="34" style="vertical-align:middle"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2.6"/><line x1="15" y1="15" x2="21" y2="21" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span></div>
   <div id="srch"><div id="sbox"><div id="sh"></div><input id="sq" type="text" placeholder="اضغط هنا واكتب الاسم"><span class="pb" id="sgo">بحث</span><span class="pb" id="scn">إلغاء</span></div></div>
+  <div id="rsm"><div id="rbox"><div id="rtt"></div><div id="rq"></div><div class="it" id="rb1"></div><div class="it" id="rb2">تشغيل من البداية</div></div></div>
   <div id="list"></div>
 </div>
 
@@ -80,10 +96,10 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
-  var S = { base: '', u: '', p: '', stack: [], sc: null, cache: {}, hls: null, playing: false, p0: null, pi: 0, pl: [], vis: 8, lastAct: 0, hovEl: null, searching: false, sv: 0, barT: 0 };
+  var S = { base: '', u: '', p: '', stack: [], sc: null, cache: {}, hls: null, playing: false, p0: null, pi: 0, pl: [], vis: 8, lastAct: 0, hovEl: null, asking: null, searching: false, sv: 0, barT: 0 };
   var ROW = 56;
   var MAP = { 50: 38, 98: 38, 56: 40, 104: 40, 52: 37, 100: 37, 54: 39, 102: 39, 53: 13, 101: 13, 49: 33, 97: 33, 48: 8, 96: 8, 51: 34, 99: 34 };
-  var NAMES = { live: 'مباشر', vod: 'أفلام', series: 'مسلسلات' };
+  var NAMES = { live: 'مباشر', vod: 'أفلام', series: 'مسلسلات', all: 'كل الأقسام' };
 
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; }
   function prog() { try { return JSON.parse(ls('iptv_prog') || '{}'); } catch (e) { return {}; } }
@@ -125,6 +141,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     api('', function (err, info) {
       if (err) { msg(explain(err)); return; }
       if (!info || !info.user_info || info.user_info.auth === 0) { msg('اليوزر أو الباسورد غلط'); return; }
+      S.exp = info.user_info.exp_date;
       ls('iptv_srv', S.base); ls('iptv_u', S.u); ls('iptv_p', S.p);
       msg('');
       S.cache = {}; S.stack = [];
@@ -142,13 +159,31 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   }
 
   /* ---------- screens ---------- */
+  function clk() {
+    var d = new Date(), h = d.getHours(), m = d.getMinutes(), ap = h >= 12 ? 'PM' : 'AM';
+    h = h % 12 || 12;
+    return (h < 10 ? '0' : '') + h + ':' + (m < 10 ? '0' : '') + m + ' ' + ap + '    ' + d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+  }
+  function expTxt() {
+    var e = parseInt(S.exp, 10);
+    if (!e) return '';
+    var d = new Date(e * 1000);
+    return 'ينتهي الاشتراك: ' + d.getFullYear() + '/' + (d.getMonth() + 1) + '/' + d.getDate();
+  }
+  function accountScreen() {
+    return { t: 'الحساب', i: 0, items: [
+      { l: 'تحديث القوائم (يجيب الجديد من السيرفر)', f: function () { S.cache = {}; back(); hdr('تم تحديث القوائم'); } },
+      { l: 'تغيير الحساب', f: logout }
+    ] };
+  }
   function home() {
-    return { t: 'الرئيسية', i: 0, items: [
+    return { t: 'الرئيسية', i: 0, tiles: true, grid: true, sec: 'all', items: [
       { l: 'مباشر', f: function () { openSec('live'); } },
       { l: 'أفلام', f: function () { openSec('vod'); } },
       { l: 'مسلسلات', f: function () { openSec('series'); } },
-      { l: '▶  متابعة المشاهدة', f: function () { push(contScreen()); } },
-      { l: 'تغيير الحساب', f: logout }
+      { l: 'متابعة المشاهدة', f: function () { push(contScreen()); } },
+      { l: 'بحث شامل', f: openSrch },
+      { l: 'الحساب والتحديث', f: function () { push(accountScreen()); } }
     ] };
   }
   function push(sc) { S.stack.push(sc); S.sc = sc; show(); }
@@ -164,7 +199,16 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     hdr(S.stack.map(function (x) { return x.t; }).join(' › '));
     S.hovEl = null;
     $('sb').style.display = sc.sec ? 'block' : 'none';
-    if (sc.detail) {
+    if (sc.tiles) {
+      S.cols = 3; S.rv = 2;
+      var av = H - 80 - 70, ics = ['<svg viewBox="0 0 64 64" width="100" height="100" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="22" width="48" height="34" rx="6"/><polyline points="22,8 32,18 42,8"/><polygon points="28,32 28,48 42,40" fill="#fff"/></svg>', '<svg viewBox="0 0 64 64" width="100" height="100" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><circle cx="32" cy="32" r="24"/><polygon points="26,21 26,43 45,32" fill="#fff"/></svg>', '<svg viewBox="0 0 64 64" width="100" height="100" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="26" width="48" height="30" rx="3"/><polygon points="8,12 56,12 56,22 8,22"/><line x1="22" y1="12" x2="16" y2="22"/><line x1="36" y1="12" x2="30" y2="22"/><line x1="50" y1="12" x2="44" y2="22"/></svg>'];
+      var tile = function (n, cls) { return '<div class="tl ' + cls + (n === sc.i ? ' on' : '') + '" data-k="' + n + '">' + (ics[n] || '') + '<div class="tn">' + esc(items[n].l) + '</div></div>'; };
+      h = '<div class="tr" style="height:' + Math.floor(av * 0.6) + 'px">' + tile(0, 't1') + tile(1, 't2') + tile(2, 't3') + '</div>' +
+          '<div class="tr" style="height:' + Math.floor(av * 0.22) + 'px">' + tile(3, 't4') + tile(4, 't4') + tile(5, 't4') + '</div>' +
+          '<div class="ex">' + esc(expTxt()) + '</div>';
+      hdr(clk());
+      $('list').className = '';
+    } else if (sc.detail) {
       var d = sc.d;
       h = '<div class="dt"><div class="dp">' + (d.img ? '<img referrerpolicy="no-referrer" onerror="imgErr(this)" src="' + esc(d.img).replace(/"/g, '%22') + '">' : '') + '</div><div class="dx"><div class="dtt">' + esc(d.title) + '</div><div class="dm">' + esc(d.meta) + '</div><div class="dd">' + esc(d.plot === undefined ? 'جاري تحميل القصة...' : (d.plot || 'مفيش وصف متاح')) + '</div><div class="db">';
       for (i = 0; i < items.length; i++) h += '<div class="it' + (i === sc.i ? ' sel' : '') + '" data-k="' + i + '">' + esc(items[i].l) + '</div>';
@@ -199,6 +243,11 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   function move(d) {
     var n = S.sc.items.length;
     if (!n) return;
+    if (S.sc.tiles) {
+      var t = S.sc.i + d;
+      if (t < 0 || t >= n) return;
+      if ((d === 1 || d === -1) && Math.floor(t / 3) !== Math.floor(S.sc.i / 3)) return;
+    }
     S.sc.i = Math.max(0, Math.min(n - 1, S.sc.i + d));
     show();
   }
@@ -215,9 +264,28 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   function doSearch() {
     var raw = $('sq').value.replace(/^\s+|\s+$/g, ''), q = norm(raw), sec = S.sc.sec;
     if (!q) return;
-    var res = S.cache[sec].all.filter(function (x) { return norm(x.name).indexOf(q) >= 0; });
     closeSrch();
-    push(listScreen(sec, { all: res }, '', 'بحث: ' + raw + ' (' + res.length + ')'));
+    var secs = sec === 'all' ? ['live', 'vod', 'series'] : [sec], items = [], n = 0;
+    function next() {
+      if (n >= secs.length) {
+        var title = 'بحث: ' + raw + ' (' + items.length + ')';
+        if (!items.length) items = [{ l: 'مفيش نتايج', f: function () {} }];
+        push({ t: title, i: 0, items: items, grid: sec !== 'live', sec: sec });
+        return;
+      }
+      var cur = secs[n++];
+      load(cur, function (e, c) {
+        if (e) { hdr(explain(e)); return; }
+        var res = c.all.filter(function (x) { return norm(x.name).indexOf(q) >= 0; });
+        if (res.length) {
+          var sub = listScreen(cur, { all: res }, '', '').items;
+          if (sec === 'all') sub.forEach(function (x) { x.l = '[' + NAMES[cur] + '] ' + x.l; });
+          items = items.concat(sub);
+        }
+        next();
+      });
+    }
+    next();
   }
   function pick(i) {
     var it = S.sc.items[i];
@@ -271,14 +339,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   function openMovie(s) {
     var p = { type: 'm', img: s.stream_icon, key: 'm' + s.stream_id, title: s.name, url: S.base + '/movie/' + enc(S.u) + '/' + enc(S.p) + '/' + s.stream_id + '.' + (s.container_extension || 'mp4'), vod: true };
     var sc = { t: s.name, i: 0, detail: true, d: { img: s.stream_icon, title: s.name, meta: meta(s.rating) }, items: [] };
-    sc.refresh = function () {
-      var pr = prog()[p.key], it = [], q = {}, k;
-      if (pr && pr.pos > 15) it.push({ l: 'كمّل من ' + fmt(pr.pos), p: p });
-      for (k in p) q[k] = p[k];
-      q.nr = true;
-      it.push({ l: pr && pr.pos > 15 ? 'تشغيل من البداية' : 'تشغيل', p: q });
-      sc.items = it;
-    };
+    sc.refresh = function () { sc.items = [{ l: 'تشغيل', p: p }]; };
     sc.refresh();
     push(sc);
     api('get_vod_info&vod_id=' + s.stream_id, function (e, d) {
@@ -315,7 +376,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     a.sort(function (x, y) { return y.ts - x.ts; });
     var items = a.map(function (o) {
       var pc = o.dur ? Math.round(o.pos * 100 / o.dur) : 0;
-      return { l: o.title + '  —  ' + pc + '%  (' + fmt(o.pos) + ')', img: o.img, p: { type: o.type, img: o.img, key: o.key, title: o.title, url: o.url, vod: true } };
+      return { l: o.title + '  —  ' + pc + '%  (' + fmt(o.pos) + ')', img: o.img, p: { type: o.type, img: o.img, key: o.key, title: o.title, url: o.url, vod: true, go: true } };
     });
     if (items.length) items.push({ l: 'مسح السجل', f: function () { saveProg({}); S.stack.pop(); push(contScreen()); } });
     else items = [{ l: 'مفيش حاجة لسه. ابدأ فيلم أو حلقة وهتظهر هنا', f: function () {} }];
@@ -341,11 +402,34 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     clearTimeout(S.barT);
     S.barT = setTimeout(function () { $('bar').style.display = 'none'; }, 5000);
   }
-  function startPlay(p, i) {
+  function drawAsk() {
+    var a = S.asking;
+    $('rsm').style.display = 'block';
+    $('rtt').textContent = a.p.title;
+    $('rq').textContent = 'كنت واقف عند ' + fmt(a.pos) + '. تحب تكمّل ولا تبدأ من الأول؟';
+    $('rb1').textContent = 'كمّل من ' + fmt(a.pos);
+    $('rb1').className = 'it' + (a.sel === 0 ? ' sel' : '');
+    $('rb2').className = 'it' + (a.sel === 1 ? ' sel' : '');
+  }
+  function choose(n) {
+    var a = S.asking;
+    if (!a || Date.now() - a.t < 500) return;
+    S.asking = null;
+    $('rsm').style.display = 'none';
+    realPlay(a.p, a.i, n === 0 ? Math.max(0, a.pos - 3) : 0);
+  }
+  function startPlay(p, i, noAsk) {
+    var pr = p.vod && prog()[p.key], pos = (pr && pr.pos > 15) ? pr.pos : 0;
+    if (!pos || p.nr) { realPlay(p, i, 0); return; }
+    if (p.go || noAsk) { realPlay(p, i, Math.max(0, pos - 3)); return; }
+    S.asking = { p: p, i: i, pos: pos, sel: 0, t: Date.now() };
+    drawAsk();
+  }
+  function realPlay(p, i, resume) {
     var v = $('vid');
     stopV();
     S.p0 = p; S.pi = i; S.pl = S.sc.items; S.playing = true;
-    var pr = prog()[p.key], resume = (!p.nr && pr && pr.pos > 15) ? pr.pos - 3 : 0;
+    resume = resume || 0;
     $('player').style.display = 'block';
     $('ttl').textContent = p.title;
     $('tm').textContent = '';
@@ -381,7 +465,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   function zap(d) {
     var j = S.pi + d;
     while (S.pl[j] && !S.pl[j].p) j += d;
-    if (S.pl[j]) { S.sc.i = j; startPlay(S.pl[j].p, j); }
+    if (S.pl[j]) { S.sc.i = j; startPlay(S.pl[j].p, j, true); }
   }
   function seek(d) { var v = $('vid'); try { v.currentTime = Math.max(0, Math.min(v.duration || 1e9, v.currentTime + d)); } catch (e) {} flashBar(); }
   function toggle() { var v = $('vid'); if (v.paused) { try { v.play(); } catch (e) {} } else { v.pause(); } flashBar(); }
@@ -396,6 +480,17 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   function isBack(k) { return k === 8 || k === 27 || k === 461 || k === 10009 || k === 10182 || k === 166; }
 
   document.addEventListener('keydown', function (e) {
+    if (S.asking) {
+      var ak = MAP[e.keyCode] || e.keyCode;
+      if (ak === 38 || ak === 37) S.asking.sel = 0;
+      else if (ak === 40 || ak === 39) S.asking.sel = 1;
+      else if (ak === 13) { var hid = S.hovEl && S.hovEl.id; choose(hid === 'rb1' ? 0 : hid === 'rb2' ? 1 : S.asking.sel); e.preventDefault(); return; }
+      else if (isBack(ak)) { S.asking = null; $('rsm').style.display = 'none'; e.preventDefault(); return; }
+      else return;
+      drawAsk();
+      e.preventDefault();
+      return;
+    }
     if (S.searching) {
       if (e.keyCode === 13) {
         if (e.target && e.target.id === 'sq') { doSearch(); e.preventDefault(); }
@@ -457,6 +552,8 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   document.onmouseover = function (e) { S.hovEl = e.target; };
   $('hbk').onclick = once(back);
   $('sb').onclick = once(openSrch);
+  $('rb1').onclick = once(function () { choose(0); });
+  $('rb2').onclick = once(function () { choose(1); });
   $('sgo').onclick = once(doSearch);
   $('scn').onclick = once(closeSrch);
   $('pu').onclick = once(function () { listClick('u'); });
@@ -469,6 +566,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   $('pp').onclick = once(toggle);
   $('player').onmousemove = flashBar;
   $('vid').onclick = flashBar;
+  setInterval(function () { if (S.sc && S.sc.tiles && !S.playing && !S.searching && !S.asking && $('app').style.display === 'block') hdr(clk()); }, 30000);
   $('go').onclick = login;
   document.addEventListener('keydown', function (e) {
     if (e.keyCode === 13 && $('login').style.display !== 'none' && $('app').style.display !== 'block') {
