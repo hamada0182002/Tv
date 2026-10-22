@@ -63,6 +63,10 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 #player{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:#000}
 #vid{width:100%;height:100%;background:#000}
 #bar{position:absolute;top:0;left:0;right:0;padding:14px 22px;font-size:28px;background:rgba(0,0,0,.7)}
+#bot{display:none;position:absolute;left:0;right:0;bottom:46px;padding:10px 26px;background:rgba(0,0,0,.6);direction:ltr;font-size:26px;align-items:center}
+#bot span{width:110px;text-align:center;flex:none}
+#pbar{flex:1;height:16px;background:rgba(255,255,255,.3);border-radius:8px;cursor:pointer;overflow:hidden}
+#pfill{height:100%;width:0;background:#e8a317}
 #status{position:absolute;bottom:0;left:0;right:0;padding:10px 22px;font-size:22px;background:rgba(0,0,0,.65)}
 </style>
 </head>
@@ -89,6 +93,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   <div id="bar"><span id="ttl"></span> <span id="tm"></span><br>
     <span class="pb" id="bk">رجوع</span><span class="pb" id="pv">▲ السابقة</span><span class="pb" id="nx">▼ التالية</span><span class="pb" id="rw">− 10 ثواني</span><span class="pb" id="pp">تشغيل / إيقاف</span><span class="pb" id="ff">+ 10 ثواني</span>
   </div>
+  <div id="bot"><span id="tc">0:00</span><div id="pbar"><div id="pfill"></div></div><span id="td">0:00</span></div>
   <div id="status"></div>
 </div>
 
@@ -99,6 +104,8 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   var S = { base: '', u: '', p: '', stack: [], sc: null, cache: {}, hls: null, playing: false, p0: null, pi: 0, pl: [], vis: 8, lastAct: 0, hovEl: null, asking: null, searching: false, sv: 0, barT: 0 };
   var ROW = 56;
   var MAP = { 50: 38, 98: 38, 56: 40, 104: 40, 52: 37, 100: 37, 54: 39, 102: 39, 53: 13, 101: 13, 49: 33, 97: 33, 48: 8, 96: 8, 51: 34, 99: 34 };
+  var NAMEMAP = { MediaPlay: 415, MediaPause: 19, MediaPlayPause: 179, MediaStop: 413, MediaRewind: 412, MediaFastForward: 417, MediaTrackNext: 176, MediaTrackPrevious: 177 };
+  var MEDIA = { 415: 'play', 19: 'pause', 179: 'pp', 413: 'stop', 178: 'stop', 412: 'rw', 417: 'ff', 176: 'next', 425: 'next', 177: 'prev', 424: 'prev' };
   var NAMES = { live: 'مباشر', vod: 'أفلام', series: 'مسلسلات', all: 'كل الأقسام' };
 
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; }
@@ -399,8 +406,10 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   }
   function flashBar() {
     $('bar').style.display = 'block';
+    $('bot').style.display = (S.p0 && S.p0.vod) ? 'flex' : 'none';
+    updProg();
     clearTimeout(S.barT);
-    S.barT = setTimeout(function () { $('bar').style.display = 'none'; }, 5000);
+    S.barT = setTimeout(function () { $('bar').style.display = 'none'; $('bot').style.display = 'none'; }, 5000);
   }
   function drawAsk() {
     var a = S.asking;
@@ -440,12 +449,13 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     $('pv').textContent = ep ? 'الحلقة السابقة' : 'السابقة';
     $('nx').textContent = ep ? 'الحلقة التالية' : 'التالية';
     ['rw', 'ff', 'pp'].forEach(function (id) { $(id).style.display = p.vod ? 'inline-block' : 'none'; });
-    v.onplaying = function () { $('status').style.display = 'none'; };
+    v.onplaying = function () { S.userPause = false; $('status').style.display = 'none'; };
+    v.onpause = function () { if (S.userPause && S.playing) { $('status').style.display = 'block'; $('status').textContent = 'متوقف مؤقتاً'; } };
     v.onerror = function () { $('status').style.display = 'block'; $('status').textContent = 'مش شغال. ممكن القناة واقفة أو الشاشة مش بتدعم صيغة الفيديو (' + (p.url.split('.').pop()) + ')'; };
     v.onloadedmetadata = function () { if (resume) { try { v.currentTime = resume; } catch (e) {} } };
     v.ontimeupdate = function () {
       if (!p.vod) return;
-      $('tm').textContent = fmt(v.currentTime) + ' / ' + fmt(v.duration);
+      updProg();
       var n = Date.now();
       if (n - S.sv > 5000) { S.sv = n; saveNow(); }
     };
@@ -462,13 +472,37 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     }
     flashBar();
   }
+  function updProg() {
+    var v = $('vid'), d = v.duration;
+    $('tc').textContent = fmt(v.currentTime);
+    $('td').textContent = (d && !isNaN(d) && d !== Infinity) ? fmt(d) : '--:--';
+    $('pfill').style.width = (d && !isNaN(d) && d !== Infinity) ? Math.min(100, v.currentTime * 100 / d) + '%' : '0%';
+  }
+  function unk(c) {
+    var st = $('status');
+    st.style.display = 'block';
+    st.textContent = 'زر غير معروف: ' + c;
+    clearTimeout(S.unkT);
+    S.unkT = setTimeout(function () { if (S.p0 && $('vid').currentTime > 0 && !S.userPause) st.style.display = 'none'; }, 3000);
+  }
+  function mediaKey(m) {
+    var v = $('vid'), p = S.p0;
+    if (m === 'play') { S.userPause = false; try { v.play(); } catch (e) {} flashBar(); }
+    else if (m === 'pause') { S.userPause = true; v.pause(); flashBar(); }
+    else if (m === 'pp') toggle();
+    else if (m === 'stop') closePlayer();
+    else if (m === 'rw') { if (p.vod) seek(-30); else flashBar(); }
+    else if (m === 'ff') { if (p.vod) seek(30); else flashBar(); }
+    else if (m === 'next') { if (p.live || p.type === 'e') zap(1); else seek(60); }
+    else if (m === 'prev') { if (p.live || p.type === 'e') zap(-1); else seek(-60); }
+  }
   function zap(d) {
     var j = S.pi + d;
     while (S.pl[j] && !S.pl[j].p) j += d;
     if (S.pl[j]) { S.sc.i = j; startPlay(S.pl[j].p, j, true); }
   }
   function seek(d) { var v = $('vid'); try { v.currentTime = Math.max(0, Math.min(v.duration || 1e9, v.currentTime + d)); } catch (e) {} flashBar(); }
-  function toggle() { var v = $('vid'); if (v.paused) { try { v.play(); } catch (e) {} } else { v.pause(); } flashBar(); }
+  function toggle() { var v = $('vid'); if (v.paused) { S.userPause = false; try { v.play(); } catch (e) {} } else { S.userPause = true; v.pause(); } flashBar(); }
   function closePlayer() {
     saveNow(); stopV(); S.playing = false; S.p0 = null; $('player').style.display = 'none';
     if (S.sc && S.sc.refresh) { S.sc.refresh(); S.sc.i = Math.min(S.sc.i, S.sc.items.length - 1); }
@@ -498,10 +532,12 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       } else if (e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009 || e.keyCode === 10182) { closeSrch(); e.preventDefault(); }
       return;
     }
-    var k = MAP[e.keyCode] || e.keyCode;
+    var raw = NAMEMAP[e.key] || e.keyCode, k = MAP[raw] || raw;
     if ($('app').style.display !== 'block') return;
     var p = S.p0;
     if (S.playing) {
+      var mk = MEDIA[raw];
+      if (mk) { mediaKey(mk); e.preventDefault(); return; }
       if (isBack(k)) closePlayer();
       else if (k === 427 || k === 33) { if (p.live || p.type === 'e') zap(-1); else seek(-60); }
       else if (k === 428 || k === 34) { if (p.live || p.type === 'e') zap(1); else seek(60); }
@@ -512,7 +548,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       else if (k === 13) {
         if (S.hovEl && String(S.hovEl.className).indexOf('pb') >= 0) S.hovEl.click();
         else if (p.vod) toggle(); else flashBar();
-      } else return;
+      } else { unk(raw); return; }
       e.preventDefault();
       return;
     }
@@ -565,6 +601,11 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   $('ff').onclick = once(function () { seek(10); });
   $('pp').onclick = once(toggle);
   $('player').onmousemove = flashBar;
+  $('pbar').onclick = function (e) {
+    var v = $('vid'), r = this.getBoundingClientRect();
+    if (v.duration && !isNaN(v.duration)) { try { v.currentTime = Math.max(0, Math.min(v.duration, (e.clientX - r.left) / r.width * v.duration)); } catch (x) {} }
+    flashBar();
+  };
   $('vid').onclick = flashBar;
   setInterval(function () { if (S.sc && S.sc.tiles && !S.playing && !S.searching && !S.asking && $('app').style.display === 'block') hdr(clk()); }, 30000);
   $('go').onclick = login;
