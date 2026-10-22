@@ -18,6 +18,11 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 #ttl2{display:inline-block;max-width:60%;overflow:hidden;text-overflow:ellipsis;vertical-align:top;line-height:64px}
 .rb{position:absolute;top:8px;width:64px;height:64px;line-height:64px;border-radius:50%;background:rgba(255,255,255,.16);text-align:center;font-size:32px;font-weight:normal;cursor:pointer}
 .rb:hover{background:#e8a317;color:#10151c}
+#sb{display:none;left:172px}
+#srch{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:50}
+#sbox{margin:12% auto 0;width:60%}
+#sh{font-size:32px;margin-bottom:16px}
+#sq{width:100%;box-sizing:border-box;font-size:32px;padding:16px;border-radius:10px;border:3px solid #e8a317;background:#1a222d;color:#fff;margin-bottom:20px;text-align:right}
 #hbk{right:20px}#pu{left:20px}#pd2{left:96px}
 .it{height:56px;line-height:56px;padding:0 24px;box-sizing:border-box;font-size:28px;border-bottom:1px solid #222c39;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .it:hover{background:#34445a}
@@ -49,7 +54,8 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 </div>
 
 <div id="app">
-  <div id="hdr"><span class="rb" id="hbk">→</span><span id="ttl2"></span><span class="rb" id="pu">▲</span><span class="rb" id="pd2">▼</span></div>
+  <div id="hdr"><span class="rb" id="hbk">→</span><span id="ttl2"></span><span class="rb" id="pu">▲</span><span class="rb" id="pd2">▼</span><span class="rb" id="sb">🔍</span></div>
+  <div id="srch"><div id="sbox"><div id="sh"></div><input id="sq" type="text" placeholder="اضغط هنا واكتب الاسم"><span class="pb" id="sgo">بحث</span><span class="pb" id="scn">إلغاء</span></div></div>
   <div id="list"></div>
 </div>
 
@@ -65,7 +71,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
-  var S = { base: '', u: '', p: '', stack: [], sc: null, cache: {}, hls: null, playing: false, p0: null, pi: 0, pl: [], vis: 8, lastAct: 0, hovEl: null, sv: 0, barT: 0 };
+  var S = { base: '', u: '', p: '', stack: [], sc: null, cache: {}, hls: null, playing: false, p0: null, pi: 0, pl: [], vis: 8, lastAct: 0, hovEl: null, searching: false, sv: 0, barT: 0 };
   var ROW = 56;
   var MAP = { 50: 38, 98: 38, 56: 40, 104: 40, 52: 37, 100: 37, 54: 39, 102: 39, 53: 13, 101: 13, 49: 33, 97: 33, 48: 8, 96: 8, 51: 34, 99: 34 };
   var NAMES = { live: 'مباشر', vod: 'أفلام', series: 'مسلسلات' };
@@ -148,6 +154,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     var sc = S.sc, items = sc.items, h = '', W = window.innerWidth, H = window.innerHeight, i;
     hdr(S.stack.map(function (x) { return x.t; }).join(' › '));
     S.hovEl = null;
+    $('sb').style.display = sc.sec ? 'block' : 'none';
     if (sc.grid) {
       var g = 14, cols = Math.max(3, Math.min(8, Math.floor((W - 40) / 175)));
       var cw = Math.floor((W - 40) / cols) - g, ph = Math.round(cw * 1.42), ch = ph + 44 + g;
@@ -180,6 +187,23 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     S.sc.i = Math.max(0, Math.min(n - 1, S.sc.i + d));
     show();
   }
+  function norm(t) { return String(t || '').toLowerCase().replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي'); }
+  function openSrch() {
+    if (!S.sc.sec) return;
+    S.searching = true;
+    $('srch').style.display = 'block';
+    $('sh').textContent = 'بحث في ' + NAMES[S.sc.sec];
+    $('sq').value = '';
+    try { $('sq').focus(); } catch (e) {}
+  }
+  function closeSrch() { S.searching = false; $('srch').style.display = 'none'; try { $('sq').blur(); } catch (e) {} }
+  function doSearch() {
+    var raw = $('sq').value.replace(/^\s+|\s+$/g, ''), q = norm(raw), sec = S.sc.sec;
+    if (!q) return;
+    var res = S.cache[sec].all.filter(function (x) { return norm(x.name).indexOf(q) >= 0; });
+    closeSrch();
+    push(listScreen(sec, { all: res }, '', 'بحث: ' + raw + ' (' + res.length + ')'));
+  }
   function pick(i) {
     var it = S.sc.items[i];
     if (!it) return;
@@ -207,7 +231,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       if (e) { hdr(explain(e)); return; }
       var items = [{ l: 'الكل (' + c.all.length + ')', f: function () { push(listScreen(sec, c, '', NAMES[sec])); } }];
       c.cats.forEach(function (ct) { items.push({ l: ct.category_name, f: function () { push(listScreen(sec, c, ct.category_id, ct.category_name)); } }); });
-      push({ t: NAMES[sec], i: 0, items: items });
+      push({ t: NAMES[sec], i: 0, items: items, sec: sec });
     });
   }
   function listScreen(sec, c, cid, title) {
@@ -219,7 +243,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       return { l: s.name, img: s.cover, sub: String(s.plot || '').slice(0, 400), f: function () { openSeries(s); } };
     });
     if (!items.length) items = [{ l: 'مفيش حاجة هنا', f: function () {} }];
-    return { t: title, i: 0, items: items, grid: sec !== 'live' };
+    return { t: title, i: 0, items: items, grid: sec !== 'live', sec: sec };
   }
   function openSeries(s) {
     hdr('جاري التحميل...');
@@ -320,6 +344,13 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   function isBack(k) { return k === 8 || k === 27 || k === 461 || k === 10009 || k === 10182 || k === 166; }
 
   document.addEventListener('keydown', function (e) {
+    if (S.searching) {
+      if (e.keyCode === 13) {
+        if (e.target && e.target.id === 'sq') { doSearch(); e.preventDefault(); }
+        else if (S.hovEl && String(S.hovEl.className).indexOf('pb') >= 0) { S.hovEl.click(); e.preventDefault(); }
+      } else if (e.keyCode === 27 || e.keyCode === 461 || e.keyCode === 10009 || e.keyCode === 10182) { closeSrch(); e.preventDefault(); }
+      return;
+    }
     var k = MAP[e.keyCode] || e.keyCode;
     if ($('app').style.display !== 'block') return;
     var p = S.p0;
@@ -371,6 +402,9 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   $('list').onwheel = function (e) { var st = S.sc.grid ? S.cols : 3; move(e.deltaY > 0 ? st : -st); if (e.preventDefault) e.preventDefault(); };
   document.onmouseover = function (e) { S.hovEl = e.target; };
   $('hbk').onclick = once(back);
+  $('sb').onclick = once(openSrch);
+  $('sgo').onclick = once(doSearch);
+  $('scn').onclick = once(closeSrch);
   $('pu').onclick = once(function () { listClick('u'); });
   $('pd2').onclick = once(function () { listClick('d'); });
   $('bk').onclick = once(closePlayer);
