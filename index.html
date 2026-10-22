@@ -2,6 +2,7 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="utf-8">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>IPTV</title>
 <style>
@@ -12,19 +13,24 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 #login button{background:#e8a317;color:#10151c;font-weight:bold;text-align:center;direction:rtl}
 #login input:focus,#login button:focus{outline:none;border-color:#fff}
 #msg{font-size:24px;color:#ffb4a8;min-height:34px}
-#app{display:none;position:absolute;top:0;left:0;right:0;bottom:0}
-#hdr{height:80px;box-sizing:border-box;padding:12px 24px;font-size:30px;background:#161d27;border-bottom:3px solid #e8a317;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#app{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:linear-gradient(180deg,#5b1d24 0%,#1b0c15 38%,#2b1235 100%)}
+#hdr{height:80px;box-sizing:border-box;padding:8px 24px;font-size:32px;font-weight:bold;text-align:center;position:relative;border-bottom:1px solid rgba(255,255,255,.15);white-space:nowrap;overflow:hidden}
+#ttl2{display:inline-block;max-width:60%;overflow:hidden;text-overflow:ellipsis;vertical-align:top;line-height:64px}
+.rb{position:absolute;top:8px;width:64px;height:64px;line-height:64px;border-radius:50%;background:rgba(255,255,255,.16);text-align:center;font-size:32px;font-weight:normal;cursor:pointer}
+.rb:hover{background:#e8a317;color:#10151c}
+#hbk{right:20px}#pu{left:20px}#pd2{left:96px}
 .it{height:56px;line-height:56px;padding:0 24px;box-sizing:border-box;font-size:28px;border-bottom:1px solid #222c39;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .it:hover{background:#34445a}
 .sel{background:#e8a317;color:#10151c;font-weight:bold}
 .nv{text-align:center;background:#243041;color:#e8a317;font-weight:bold}
 .pb{display:inline-block;margin:0 10px;padding:4px 18px;background:#e8a317;color:#10151c;border-radius:8px;cursor:pointer;font-size:26px}
 #list{position:absolute;top:80px;right:0;left:0;bottom:0;overflow:hidden}
-#app.ws #list{left:32%}
-#side{display:none;position:absolute;top:80px;left:0;bottom:0;width:32%;padding:20px;box-sizing:border-box;background:#0d1218;overflow:hidden}
-#pimg{display:none;width:100%;max-height:58%;object-fit:contain;margin:0 auto 14px}
-#pt{font-size:28px;font-weight:bold;margin-bottom:8px}
-#pd{font-size:22px;color:#aeb9c7;line-height:1.5}
+#list.grid{padding:14px 20px 0;box-sizing:border-box}
+.cd{display:inline-block;vertical-align:top;cursor:pointer}
+.pst{background:linear-gradient(#2d2d3a,#17171f);border-radius:14px;overflow:hidden}
+.pst img{width:100%;height:100%;object-fit:cover;display:block}
+.pst.on{box-shadow:0 0 0 5px #e8a317}
+.nm{font-size:22px;text-align:center;margin-top:8px;height:30px;line-height:30px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 #player{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:#000}
 #vid{width:100%;height:100%;background:#000}
 #bar{position:absolute;top:0;left:0;right:0;padding:14px 22px;font-size:28px;background:rgba(0,0,0,.7)}
@@ -43,8 +49,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 </div>
 
 <div id="app">
-  <div id="hdr"><span class="pb" id="hbk">رجوع</span><span id="ttl2"></span></div>
-  <div id="side"><img id="pimg" alt=""><div id="pt"></div><div id="pd"></div></div>
+  <div id="hdr"><span class="rb" id="hbk">→</span><span id="ttl2"></span><span class="rb" id="pu">▲</span><span class="rb" id="pd2">▼</span></div>
   <div id="list"></div>
 </div>
 
@@ -62,7 +67,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   var $ = function (id) { return document.getElementById(id); };
   var S = { base: '', u: '', p: '', stack: [], sc: null, cache: {}, hls: null, playing: false, p0: null, pi: 0, pl: [], vis: 8, lastAct: 0, hovEl: null, sv: 0, barT: 0 };
   var ROW = 56;
-  var MAP = { 50: 38, 98: 38, 56: 40, 104: 40, 52: 37, 100: 37, 54: 39, 102: 39, 53: 13, 101: 13, 49: 33, 97: 33, 51: 34, 99: 34 };
+  var MAP = { 50: 38, 98: 38, 56: 40, 104: 40, 52: 37, 100: 37, 54: 39, 102: 39, 53: 13, 101: 13, 49: 33, 97: 33, 48: 8, 96: 8, 51: 34, 99: 34 };
   var NAMES = { live: 'مباشر', vod: 'أفلام', series: 'مسلسلات' };
 
   function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; }
@@ -135,31 +140,39 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   function back() {
     if (S.stack.length > 1) { S.stack.pop(); S.sc = S.stack[S.stack.length - 1]; show(); }
   }
+  window.imgErr = function (el) {
+    var u = el.src;
+    if (u.indexOf('http:') === 0 && !el.r) { el.r = 1; el.src = u.replace('http:', 'https:'); } else { el.style.display = 'none'; }
+  };
   function show() {
-    var sc = S.sc, items = sc.items;
+    var sc = S.sc, items = sc.items, h = '', W = window.innerWidth, H = window.innerHeight, i;
     hdr(S.stack.map(function (x) { return x.t; }).join(' › '));
-    S.vis = Math.max(3, Math.floor((window.innerHeight - 90) / ROW) - 2);
-    var start = Math.max(0, Math.min(sc.i - Math.floor(S.vis / 2), items.length - S.vis));
-    var end = Math.min(items.length, start + S.vis);
-    var h = '<div class="it nv" data-k="u">▲ للأعلى</div>';
-    for (var i = start; i < end; i++) {
-      h += '<div class="it' + (i === sc.i ? ' sel' : '') + '" data-k="' + i + '">' + esc(items[i].l) + '</div>';
-    }
-    h += '<div class="it nv" data-k="d">▼ للأسفل</div>';
     S.hovEl = null;
+    if (sc.grid) {
+      var g = 14, cols = Math.max(3, Math.min(8, Math.floor((W - 40) / 175)));
+      var cw = Math.floor((W - 40) / cols) - g, ph = Math.round(cw * 1.42), ch = ph + 44 + g;
+      var rv = Math.max(1, Math.floor((H - 100) / ch));
+      S.cols = cols; S.rv = rv;
+      var a = Math.floor(Math.floor(sc.i / cols) / rv) * rv * cols, z = Math.min(items.length, a + rv * cols);
+      for (i = a; i < z; i++) {
+        var it = items[i];
+        h += '<div class="cd" data-k="' + i + '" style="width:' + cw + 'px;margin:0 ' + (g / 2) + 'px ' + g + 'px"><div class="pst' + (i === sc.i ? ' on' : '') + '" style="height:' + ph + 'px">' +
+          (it.img ? '<img referrerpolicy="no-referrer" onerror="imgErr(this)" src="' + esc(it.img).replace(/"/g, '%22') + '">' : '') +
+          '</div><div class="nm">' + esc(it.l) + '</div></div>';
+      }
+      $('list').className = 'grid';
+    } else {
+      S.vis = Math.max(3, Math.floor((H - 90) / ROW) - 2);
+      var start = Math.max(0, Math.min(sc.i - Math.floor(S.vis / 2), items.length - S.vis));
+      var end = Math.min(items.length, start + S.vis);
+      h = '<div class="it nv" data-k="u">▲ للأعلى</div>';
+      for (i = start; i < end; i++) {
+        h += '<div class="it' + (i === sc.i ? ' sel' : '') + '" data-k="' + i + '">' + esc(items[i].l) + '</div>';
+      }
+      h += '<div class="it nv" data-k="d">▼ للأسفل</div>';
+      $('list').className = '';
+    }
     $('list').innerHTML = h;
-    var ws = items.some(function (x) { return x.img; });
-    $('app').className = ws ? 'ws' : '';
-    $('side').style.display = ws ? 'block' : 'none';
-    if (ws) side(items[sc.i]);
-  }
-  function side(it) {
-    if (!it) return;
-    var im = $('pimg');
-    im.onerror = function () { im.style.display = 'none'; };
-    if (it.img) { im.src = it.img; im.style.display = 'block'; } else { im.style.display = 'none'; }
-    $('pt').textContent = it.l || '';
-    $('pd').textContent = it.sub || '';
   }
   function move(d) {
     var n = S.sc.items.length;
@@ -206,7 +219,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       return { l: s.name, img: s.cover, sub: String(s.plot || '').slice(0, 400), f: function () { openSeries(s); } };
     });
     if (!items.length) items = [{ l: 'مفيش حاجة هنا', f: function () {} }];
-    return { t: title, i: 0, items: items };
+    return { t: title, i: 0, items: items, grid: sec !== 'live' };
   }
   function openSeries(s) {
     hdr('جاري التحميل...');
@@ -237,7 +250,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     });
     if (items.length) items.push({ l: 'مسح السجل', f: function () { saveProg({}); S.stack.pop(); push(contScreen()); } });
     else items = [{ l: 'مفيش حاجة لسه. ابدأ فيلم أو حلقة وهتظهر هنا', f: function () {} }];
-    return { t: 'متابعة المشاهدة', i: 0, items: items };
+    return { t: 'متابعة المشاهدة', i: 0, items: items, grid: true };
   }
 
   /* ---------- player ---------- */
@@ -323,23 +336,31 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       e.preventDefault();
       return;
     }
-    if (k === 38) move(-1);
-    else if (k === 40) move(1);
-    else if (k === 33) move(-(S.vis - 1));
-    else if (k === 34) move(S.vis - 1);
+    var g = S.sc.grid, pg = g ? S.cols * S.rv : S.vis - 1;
+    if (k === 38) move(g ? -S.cols : -1);
+    else if (k === 40) move(g ? S.cols : 1);
+    else if (k === 33) move(-pg);
+    else if (k === 34) move(pg);
+    else if (g && k === 37) move(1);
+    else if (g && k === 39) move(-1);
     else if (k === 37 || isBack(k)) back();
     else if (k === 13 || k === 39) {
-      var h = S.hovEl;
-      while (h && !(h.getAttribute && h.getAttribute('data-k'))) h = h.parentNode;
-      if (k === 13 && h && h.parentNode && h.parentNode.id === 'list') listClick(h.getAttribute('data-k'));
-      else pick(S.sc.i);
+      var hv = S.hovEl;
+      if (k === 13 && hv && String(hv.className).indexOf('rb') >= 0) { hv.click(); }
+      else {
+        var h = hv;
+        while (h && !(h.getAttribute && h.getAttribute('data-k'))) h = h.parentNode;
+        if (k === 13 && h && h.parentNode && h.parentNode.id === 'list') listClick(h.getAttribute('data-k'));
+        else pick(S.sc.i);
+      }
     } else return;
     e.preventDefault();
   });
 
   function listClick(k) {
-    if (k === 'u') move(-(S.vis - 1));
-    else if (k === 'd') move(S.vis - 1);
+    var pg = S.sc.grid ? S.cols * S.rv : S.vis - 1;
+    if (k === 'u') move(-pg);
+    else if (k === 'd') move(pg);
     else pick(parseInt(k, 10));
   }
   $('list').onclick = function (e) {
@@ -347,17 +368,11 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     while (t && !(t.getAttribute && t.getAttribute('data-k'))) t = t.parentNode;
     if (t) listClick(t.getAttribute('data-k'));
   };
-  $('list').onwheel = function (e) { move(e.deltaY > 0 ? 3 : -3); if (e.preventDefault) e.preventDefault(); };
-  document.onmouseover = function (e) {
-    S.hovEl = e.target;
-    var t = e.target;
-    while (t && !(t.getAttribute && t.getAttribute('data-k'))) t = t.parentNode;
-    if (t && t.parentNode && t.parentNode.id === 'list' && S.sc && !S.playing) {
-      var k = parseInt(t.getAttribute('data-k'), 10);
-      if (!isNaN(k) && S.sc.items[k] && S.sc.items[k].img) side(S.sc.items[k]);
-    }
-  };
+  $('list').onwheel = function (e) { var st = S.sc.grid ? S.cols : 3; move(e.deltaY > 0 ? st : -st); if (e.preventDefault) e.preventDefault(); };
+  document.onmouseover = function (e) { S.hovEl = e.target; };
   $('hbk').onclick = once(back);
+  $('pu').onclick = once(function () { listClick('u'); });
+  $('pd2').onclick = once(function () { listClick('d'); });
   $('bk').onclick = once(closePlayer);
   $('pv').onclick = once(function () { zap(-1); });
   $('nx').onclick = once(function () { zap(1); });
