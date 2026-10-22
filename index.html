@@ -13,19 +13,16 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 #login input:focus,#login button:focus{outline:none;border-color:#fff}
 #msg{font-size:24px;color:#ffb4a8;min-height:34px}
 #app{display:none;position:absolute;top:0;left:0;right:0;bottom:0}
-#cats{position:absolute;top:0;right:0;bottom:0;width:28%;overflow:hidden;background:#161d27}
-#chans{position:absolute;top:0;left:0;bottom:0;right:28%;overflow:hidden}
-.it{height:56px;line-height:56px;padding:0 18px;box-sizing:border-box;font-size:26px;border-bottom:1px solid #222c39;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+#hdr{height:80px;box-sizing:border-box;padding:12px 24px;font-size:30px;background:#161d27;border-bottom:3px solid #e8a317;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it{height:56px;line-height:56px;padding:0 24px;box-sizing:border-box;font-size:28px;border-bottom:1px solid #222c39;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .it:hover{background:#34445a}
-.nv{text-align:center;background:#243041;color:#e8a317;font-weight:bold}
-.pb{display:inline-block;margin:0 14px;padding:6px 18px;background:#e8a317;color:#10151c;border-radius:8px;cursor:pointer;font-size:26px}
-.on{background:#2a3646}
 .sel{background:#e8a317;color:#10151c;font-weight:bold}
+.nv{text-align:center;background:#243041;color:#e8a317;font-weight:bold}
+.pb{display:inline-block;margin:0 10px;padding:4px 18px;background:#e8a317;color:#10151c;border-radius:8px;cursor:pointer;font-size:26px}
 #player{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:#000}
 #vid{width:100%;height:100%;background:#000}
-#bar{position:absolute;top:0;left:0;right:0;padding:14px 22px;font-size:28px;background:rgba(0,0,0,.65)}
+#bar{position:absolute;top:0;left:0;right:0;padding:14px 22px;font-size:28px;background:rgba(0,0,0,.7)}
 #status{position:absolute;bottom:0;left:0;right:0;padding:10px 22px;font-size:22px;background:rgba(0,0,0,.65)}
-#kc{position:fixed;bottom:6px;left:10px;font-size:20px;color:#8da0b8;direction:ltr;z-index:99}
 </style>
 </head>
 <body>
@@ -40,47 +37,54 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 </div>
 
 <div id="app">
-  <div id="cats"></div>
-  <div id="chans"></div>
+  <div id="hdr"><span class="pb" id="hbk">رجوع</span><span id="ttl2"></span></div>
+  <div id="list"></div>
 </div>
 
 <div id="player">
   <video id="vid" autoplay></video>
-  <div id="bar"><span id="ttl"></span> <span class="pb" id="bk">رجوع</span><span class="pb" id="pv">▲ السابقة</span><span class="pb" id="nx">▼ التالية</span></div>
+  <div id="bar"><span id="ttl"></span> <span id="tm"></span><br>
+    <span class="pb" id="bk">رجوع</span><span class="pb" id="pv">▲ السابقة</span><span class="pb" id="nx">▼ التالية</span><span class="pb" id="rw">⏪ 10</span><span class="pb" id="pp">⏯</span><span class="pb" id="ff">10 ⏩</span>
+  </div>
   <div id="status"></div>
 </div>
 
-<div id="kc">اضغط أي زر في الريموت</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
-  var S = { base: '', u: '', p: '', cats: [], streams: [], list: [], col: 0, ci: 0, chi: 0, playing: false, hls: null, barT: 0 };
+  var S = { base: '', u: '', p: '', stack: [], sc: null, cache: {}, hls: null, playing: false, p0: null, pi: 0, pl: [], vis: 8, lastAct: 0, hovEl: null, sv: 0, barT: 0 };
   var ROW = 56;
+  var MAP = { 50: 38, 98: 38, 56: 40, 104: 40, 52: 37, 100: 37, 54: 39, 102: 39, 53: 13, 101: 13, 49: 33, 97: 33, 51: 34, 99: 34 };
+  var NAMES = { live: 'مباشر', vod: 'أفلام', series: 'مسلسلات' };
 
-  var MAP = { 50: 38, 98: 38, 56: 40, 104: 40, 52: 37, 100: 37, 54: 39, 102: 39, 53: 13, 101: 13 };
-  document.addEventListener('keydown', function (e) { $('kc').textContent = 'آخر زر: ' + e.keyCode + (MAP[e.keyCode] ? '  (يعمل كـ ' + MAP[e.keyCode] + ')' : ''); }, true);
-
-  function store(k, v) { try { if (v === undefined) { return localStorage.getItem(k); } localStorage.setItem(k, v); } catch (e) {} return null; }
+  function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) {} return null; }
+  function prog() { try { return JSON.parse(ls('iptv_prog') || '{}'); } catch (e) { return {}; } }
+  function saveProg(o) { ls('iptv_prog', JSON.stringify(o)); }
   function msg(t) { $('msg').textContent = t || ''; }
+  function hdr(t) { $('ttl2').textContent = t; }
+  function esc(t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function enc(t) { return encodeURIComponent(t); }
+  function arr(x) { return (x && x.length !== undefined) ? x : []; }
+  function fmt(s) { s = Math.floor(s || 0); if (isNaN(s) || s < 0) return '0:00'; var h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), c = s % 60; return (h ? h + ':' + (m < 10 ? '0' : '') : '') + m + ':' + (c < 10 ? '0' : '') + c; }
 
   function get(url, cb) {
-    var x = new XMLHttpRequest();
-    var done = false;
-    function fin(err, data) { if (done) return; done = true; cb(err, data); }
+    var x = new XMLHttpRequest(), done = false;
+    function fin(err, d) { if (done) return; done = true; cb(err, d); }
     x.open('GET', url, true);
-    x.timeout = 30000;
-    x.onload = function () {
-      if (x.status !== 200) return fin('status ' + x.status);
-      try { fin(null, JSON.parse(x.responseText)); } catch (e) { fin('json'); }
-    };
+    x.timeout = 60000;
+    x.onload = function () { if (x.status !== 200) return fin('status ' + x.status); try { fin(null, JSON.parse(x.responseText)); } catch (e) { fin('json'); } };
     x.onerror = function () { fin('network'); };
     x.ontimeout = function () { fin('timeout'); };
     try { x.send(); } catch (e) { fin('blocked'); }
   }
-
   function api(action, cb) {
-    get(S.base + '/player_api.php?username=' + encodeURIComponent(S.u) + '&password=' + encodeURIComponent(S.p) + (action ? '&action=' + action : ''), cb);
+    get(S.base + '/player_api.php?username=' + enc(S.u) + '&password=' + enc(S.p) + (action ? '&action=' + action : ''), cb);
+  }
+  function explain(err) {
+    if (err === 'network' || err === 'blocked') return 'مش قادر يوصل للسيرفر. غالباً المتصفح بيمنع السيرفر http من صفحة https.';
+    if (err === 'timeout') return 'السيرفر اتأخر في الرد. جرب تاني.';
+    return 'حصل خطأ: ' + err;
   }
 
   function login() {
@@ -94,206 +98,258 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     api('', function (err, info) {
       if (err) { msg(explain(err)); return; }
       if (!info || !info.user_info || info.user_info.auth === 0) { msg('اليوزر أو الباسورد غلط'); return; }
-      store('iptv_srv', S.base); store('iptv_u', S.u); store('iptv_p', S.p);
-      msg('جاري تحميل القنوات...');
-      api('get_live_categories', function (e1, cats) {
-        if (e1) { msg(explain(e1)); return; }
-        api('get_live_streams', function (e2, streams) {
-          if (e2) { msg(explain(e2)); return; }
-          S.cats = [{ category_id: '', category_name: 'كل القنوات' }].concat(cats || []);
-          S.cats.push({ category_id: '__out', category_name: 'تغيير الحساب' });
-          S.streams = streams || [];
-          msg('');
-          $('login').style.display = 'none';
-          $('app').style.display = 'block';
-          S.col = 0; S.ci = 0; S.chi = 0;
-          showCat();
-          drawCats();
-        });
+      ls('iptv_srv', S.base); ls('iptv_u', S.u); ls('iptv_p', S.p);
+      msg('');
+      S.cache = {}; S.stack = [];
+      $('login').style.display = 'none';
+      $('app').style.display = 'block';
+      push(home());
+    });
+  }
+  function logout() {
+    ls('iptv_u', ''); ls('iptv_p', '');
+    $('app').style.display = 'none';
+    $('login').style.display = 'block';
+    $('usr').value = ''; $('pwd').value = '';
+    $('srv').focus();
+  }
+
+  /* ---------- screens ---------- */
+  function home() {
+    return { t: 'الرئيسية', i: 0, items: [
+      { l: '📺  مباشر', f: function () { openSec('live'); } },
+      { l: '🎬  أفلام', f: function () { openSec('vod'); } },
+      { l: '📼  مسلسلات', f: function () { openSec('series'); } },
+      { l: '▶  متابعة المشاهدة', f: function () { push(contScreen()); } },
+      { l: 'تغيير الحساب', f: logout }
+    ] };
+  }
+  function push(sc) { S.stack.push(sc); S.sc = sc; show(); }
+  function back() {
+    if (S.stack.length > 1) { S.stack.pop(); S.sc = S.stack[S.stack.length - 1]; show(); }
+  }
+  function show() {
+    var sc = S.sc, items = sc.items;
+    hdr(S.stack.map(function (x) { return x.t; }).join(' › '));
+    S.vis = Math.max(3, Math.floor((window.innerHeight - 90) / ROW) - 2);
+    var start = Math.max(0, Math.min(sc.i - Math.floor(S.vis / 2), items.length - S.vis));
+    var end = Math.min(items.length, start + S.vis);
+    var h = '<div class="it nv" data-k="u">▲ للأعلى</div>';
+    for (var i = start; i < end; i++) {
+      h += '<div class="it' + (i === sc.i ? ' sel' : '') + '" data-k="' + i + '">' + esc(items[i].l) + '</div>';
+    }
+    h += '<div class="it nv" data-k="d">▼ للأسفل</div>';
+    S.hovEl = null;
+    $('list').innerHTML = h;
+  }
+  function move(d) {
+    var n = S.sc.items.length;
+    if (!n) return;
+    S.sc.i = Math.max(0, Math.min(n - 1, S.sc.i + d));
+    show();
+  }
+  function pick(i) {
+    var it = S.sc.items[i];
+    if (!it) return;
+    if (Date.now() - S.lastAct < 400) return;
+    S.lastAct = Date.now();
+    S.sc.i = i;
+    if (it.p) startPlay(it.p, i); else if (it.f) it.f();
+  }
+
+  function load(sec, cb) {
+    if (S.cache[sec]) return cb(null, S.cache[sec]);
+    var A = { live: ['get_live_categories', 'get_live_streams'], vod: ['get_vod_categories', 'get_vod_streams'], series: ['get_series_categories', 'get_series'] }[sec];
+    hdr('جاري التحميل... (ممكن ياخد وقت)');
+    api(A[0], function (e, cats) {
+      if (e) return cb(e);
+      api(A[1], function (e2, all) {
+        if (e2) return cb(e2);
+        S.cache[sec] = { cats: arr(cats), all: arr(all) };
+        cb(null, S.cache[sec]);
       });
     });
   }
-
-  function explain(err) {
-    if (err === 'network' || err === 'blocked') {
-      return 'الصفحة مش قادرة توصل للسيرفر. غالباً المتصفح بيمنع السيرفر http لأن الصفحة https، أو السيرفر مش بيسمح بالطلبات من المتصفح. جرب تستضيف الصفحة على موقع http.';
-    }
-    if (err === 'timeout') return 'السيرفر اتأخر في الرد. جرب تاني.';
-    return 'حصل خطأ: ' + err;
+  function openSec(sec) {
+    load(sec, function (e, c) {
+      if (e) { hdr(explain(e)); return; }
+      var items = [{ l: 'الكل (' + c.all.length + ')', f: function () { push(listScreen(sec, c, '', NAMES[sec])); } }];
+      c.cats.forEach(function (ct) { items.push({ l: ct.category_name, f: function () { push(listScreen(sec, c, ct.category_id, ct.category_name)); } }); });
+      push({ t: NAMES[sec], i: 0, items: items });
+    });
   }
-
-  function showCat() {
-    var c = S.cats[S.ci];
-    if (!c || c.category_id === '__out') { S.list = []; }
-    else if (c.category_id === '') { S.list = S.streams; }
-    else { S.list = S.streams.filter(function (s) { return String(s.category_id) === String(c.category_id); }); }
-    S.chi = 0;
-    drawChans();
+  function listScreen(sec, c, cid, title) {
+    var src = cid === '' ? c.all : c.all.filter(function (s) { return String(s.category_id) === String(cid); });
+    var base = S.base + '/', cr = '/' + enc(S.u) + '/' + enc(S.p) + '/';
+    var items = src.map(function (s) {
+      if (sec === 'live') return { l: s.name, p: { type: 'l', key: 'l' + s.stream_id, title: s.name, url: base + 'live' + cr + s.stream_id + '.m3u8', live: true } };
+      if (sec === 'vod') return { l: s.name, p: { type: 'm', key: 'm' + s.stream_id, title: s.name, url: base + 'movie' + cr + s.stream_id + '.' + (s.container_extension || 'mp4'), vod: true } };
+      return { l: s.name, f: function () { openSeries(s); } };
+    });
+    if (!items.length) items = [{ l: 'مفيش حاجة هنا', f: function () {} }];
+    return { t: title, i: 0, items: items };
   }
-
-  function rows(items, idx, nameFn, host, activeCol) {
-    var visible = Math.floor(window.innerHeight / ROW) - 3;
-    if (visible < 3) visible = 3;
-    S.vis = visible;
-    S.hovEl = null;
-    var start = Math.max(0, Math.min(idx - Math.floor(visible / 2), items.length - visible));
-    var end = Math.min(items.length, start + visible);
-    var h = '<div class="it nv" data-k="u">▲ للأعلى</div>';
-    for (var i = start; i < end; i++) {
-      var cls = 'it' + (i === idx ? (activeCol ? ' sel' : ' on') : '');
-      h += '<div class="' + cls + '" data-k="' + i + '">' + nameFn(items[i]) + '</div>';
-    }
-    h += '<div class="it nv" data-k="d">▼ للأسفل</div>';
-    host.innerHTML = h;
-  }
-
-  function pageCat(d) { S.ci = Math.max(0, Math.min(S.cats.length - 1, S.ci + d)); showCat(); drawCats(); }
-  function pageChan(d) { if (!S.list.length) return; S.chi = Math.max(0, Math.min(S.list.length - 1, S.chi + d)); drawChans(); }
-
-  function onList(col, e) {
-    var t = e.target;
-    while (t && !(t.getAttribute && t.getAttribute('data-k'))) t = t.parentNode;
-    if (!t) return;
-    if (Date.now() - (S.lastAct || 0) < 400) return;
-    S.lastAct = Date.now();
-    var k = t.getAttribute('data-k'), step = Math.max(1, (S.vis || 8) - 1);
-    if (col === 0) {
-      if (k === 'u') pageCat(-step);
-      else if (k === 'd') pageCat(step);
-      else {
-        S.ci = parseInt(k, 10);
-        if (S.cats[S.ci].category_id === '__out') { logout(); return; }
-        S.col = 0; showCat(); drawCats();
+  function openSeries(s) {
+    hdr('جاري التحميل...');
+    api('get_series_info&series_id=' + s.series_id, function (e, d) {
+      if (e) { hdr(explain(e)); return; }
+      var eps = (d && d.episodes) || {};
+      var ks = Object.keys(eps).sort(function (a, b) { return a - b; });
+      if (!ks.length) { hdr('مفيش حلقات للمسلسل ده'); return; }
+      function epScreen(k) {
+        return { t: 'الموسم ' + k, i: 0, items: arr(eps[k]).map(function (x) {
+          return { l: (x.episode_num || '') + ' - ' + (x.title || 'حلقة'), p: { type: 'e', key: 'e' + x.id, title: s.name + ' - م' + k + ' ح' + (x.episode_num || ''), url: S.base + '/series/' + enc(S.u) + '/' + enc(S.p) + '/' + x.id + '.' + (x.container_extension || 'mp4'), vod: true } };
+        }) };
       }
-    } else {
-      if (k === 'u') pageChan(-step);
-      else if (k === 'd') pageChan(step);
-      else play(parseInt(k, 10));
-    }
+      if (ks.length === 1) { var one = epScreen(ks[0]); one.t = s.name; push(one); return; }
+      push({ t: s.name, i: 0, items: ks.map(function (k) {
+        return { l: 'الموسم ' + k + ' (' + arr(eps[k]).length + ' حلقة)', f: function () { push(epScreen(k)); } };
+      }) });
+    });
+  }
+  function contScreen() {
+    var P = prog(), a = [];
+    for (var k in P) { if (P.hasOwnProperty(k)) a.push(P[k]); }
+    a.sort(function (x, y) { return y.ts - x.ts; });
+    var items = a.map(function (o) {
+      var pc = o.dur ? Math.round(o.pos * 100 / o.dur) : 0;
+      return { l: o.title + '  —  ' + pc + '%  (' + fmt(o.pos) + ')', p: { type: o.type, key: o.key, title: o.title, url: o.url, vod: true } };
+    });
+    if (items.length) items.push({ l: 'مسح السجل', f: function () { saveProg({}); S.stack.pop(); push(contScreen()); } });
+    else items = [{ l: 'مفيش حاجة لسه. ابدأ فيلم أو حلقة وهتظهر هنا', f: function () {} }];
+    return { t: 'متابعة المشاهدة', i: 0, items: items };
   }
 
-  function esc(t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
-  function drawCats() { rows(S.cats, S.ci, function (c) { return esc(c.category_name); }, $('cats'), S.col === 0); }
-  function drawChans() {
-    if (!S.list.length) { $('chans').innerHTML = '<div class="it">' + (S.cats[S.ci].category_id === '__out' ? 'اضغط OK لتسجيل الخروج' : 'مفيش قنوات هنا') + '</div>'; return; }
-    rows(S.list, S.chi, function (s) { return esc(s.name); }, $('chans'), S.col === 1);
+  /* ---------- player ---------- */
+  function saveNow() {
+    var v = $('vid'), p = S.p0;
+    if (!p || !p.vod || !v.duration || isNaN(v.duration)) return;
+    var P = prog();
+    if (v.currentTime > v.duration * 0.95) { delete P[p.key]; }
+    else if (v.currentTime > 10) { P[p.key] = { key: p.key, type: p.type, title: p.title, url: p.url, pos: v.currentTime, dur: v.duration, ts: Date.now() }; }
+    saveProg(P);
   }
-
-  function play(i) {
-    var s = S.list[i];
-    if (!s) return;
-    S.chi = i;
-    var url = S.base + '/live/' + encodeURIComponent(S.u) + '/' + encodeURIComponent(S.p) + '/' + s.stream_id + '.m3u8';
-    var v = $('vid');
-    stop();
-    $('player').style.display = 'block';
-    S.playing = true;
-    $('ttl').textContent = s.name;
-    $('status').textContent = 'جاري التشغيل...';
-    flashBar();
-    if (window.Hls && Hls.isSupported()) {
-      S.hls = new Hls({ lowLatencyMode: false });
-      S.hls.on(Hls.Events.ERROR, function (ev, d) {
-        if (d && d.fatal) { $('status').textContent = 'القناة مش شغالة أو السيرفر رفض البث'; $('status').style.display = 'block'; }
-      });
-      S.hls.loadSource(url);
-      S.hls.attachMedia(v);
-      S.hls.on(Hls.Events.MANIFEST_PARSED, function () { try { v.play(); } catch (e) {} });
-    } else {
-      v.src = url;
-      try { v.play(); } catch (e) {}
-    }
-    v.onplaying = function () { $('status').style.display = 'none'; };
-    v.onerror = function () { $('status').textContent = 'القناة مش شغالة أو المتصفح مش بيدعم الصيغة'; $('status').style.display = 'block'; };
-  }
-
-  function stop() {
+  function stopV() {
     var v = $('vid');
     if (S.hls) { try { S.hls.destroy(); } catch (e) {} S.hls = null; }
     try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {}
   }
-
   function flashBar() {
     $('bar').style.display = 'block';
     clearTimeout(S.barT);
-    S.barT = setTimeout(function () { $('bar').style.display = 'none'; }, 4000);
+    S.barT = setTimeout(function () { $('bar').style.display = 'none'; }, 5000);
   }
-
-  function closePlayer() { stop(); S.playing = false; $('player').style.display = 'none'; drawChans(); }
-
-  function logout() {
-    store('iptv_u', ''); store('iptv_p', '');
-    $('app').style.display = 'none';
-    $('login').style.display = 'block';
-    $('srv').value = S.base; $('usr').value = ''; $('pwd').value = '';
-    $('srv').focus();
+  function startPlay(p, i) {
+    var v = $('vid');
+    stopV();
+    S.p0 = p; S.pi = i; S.pl = S.sc.items; S.playing = true;
+    var pr = prog()[p.key], resume = (pr && pr.pos > 15) ? pr.pos - 3 : 0;
+    $('player').style.display = 'block';
+    $('ttl').textContent = p.title;
+    $('tm').textContent = '';
+    $('status').style.display = 'block';
+    $('status').textContent = resume ? 'جاري التشغيل... هيكمل من ' + fmt(resume) : 'جاري التشغيل...';
+    ['pv', 'nx'].forEach(function (id) { $(id).style.display = p.live ? 'inline-block' : 'none'; });
+    ['rw', 'ff', 'pp'].forEach(function (id) { $(id).style.display = p.vod ? 'inline-block' : 'none'; });
+    v.onplaying = function () { $('status').style.display = 'none'; };
+    v.onerror = function () { $('status').style.display = 'block'; $('status').textContent = 'مش شغال. ممكن القناة واقفة أو الشاشة مش بتدعم صيغة الفيديو (' + (p.url.split('.').pop()) + ')'; };
+    v.onloadedmetadata = function () { if (resume) { try { v.currentTime = resume; } catch (e) {} } };
+    v.ontimeupdate = function () {
+      if (!p.vod) return;
+      $('tm').textContent = fmt(v.currentTime) + ' / ' + fmt(v.duration);
+      var n = Date.now();
+      if (n - S.sv > 5000) { S.sv = n; saveNow(); }
+    };
+    v.onended = function () { saveNow(); closePlayer(); };
+    if (p.live && window.Hls && Hls.isSupported()) {
+      S.hls = new Hls({ lowLatencyMode: false });
+      S.hls.on(Hls.Events.ERROR, function (ev, d) { if (d && d.fatal) { $('status').style.display = 'block'; $('status').textContent = 'القناة مش شغالة أو السيرفر رفض البث'; } });
+      S.hls.loadSource(p.url);
+      S.hls.attachMedia(v);
+      S.hls.on(Hls.Events.MANIFEST_PARSED, function () { try { v.play(); } catch (e) {} });
+    } else {
+      v.src = p.url;
+      try { v.play(); } catch (e) {}
+    }
+    flashBar();
   }
+  function zap(d) {
+    var j = S.pi + d;
+    while (S.pl[j] && !S.pl[j].p) j += d;
+    if (S.pl[j]) { S.sc.i = j; startPlay(S.pl[j].p, j); }
+  }
+  function seek(d) { var v = $('vid'); try { v.currentTime = Math.max(0, Math.min(v.duration || 1e9, v.currentTime + d)); } catch (e) {} flashBar(); }
+  function toggle() { var v = $('vid'); if (v.paused) { try { v.play(); } catch (e) {} } else { v.pause(); } flashBar(); }
+  function closePlayer() { saveNow(); stopV(); S.playing = false; S.p0 = null; $('player').style.display = 'none'; show(); }
+  function once(fn) { return function () { if (Date.now() - S.lastAct < 400) return; S.lastAct = Date.now(); fn(); }; }
 
+  /* ---------- input ---------- */
   function isBack(k) { return k === 8 || k === 27 || k === 461 || k === 10009 || k === 10182 || k === 166; }
 
   document.addEventListener('keydown', function (e) {
     var k = MAP[e.keyCode] || e.keyCode;
-    if ($('app').style.display !== 'block') { return; }
+    if ($('app').style.display !== 'block') return;
+    var p = S.p0;
     if (S.playing) {
-      if (isBack(k)) { closePlayer(); }
-      else if (k === 38 || k === 427 || k === 33) { play(Math.max(0, S.chi - 1)); }
-      else if (k === 40 || k === 428 || k === 34) { play(Math.min(S.list.length - 1, S.chi + 1)); }
-      else if (k === 13) { if (S.hovEl && String(S.hovEl.className).indexOf('pb') >= 0) { S.hovEl.click(); } else { flashBar(); } }
-      else { return; }
+      if (isBack(k)) closePlayer();
+      else if (k === 38 || k === 427 || k === 33) { if (p.live) zap(-1); else seek(-60); }
+      else if (k === 40 || k === 428 || k === 34) { if (p.live) zap(1); else seek(60); }
+      else if (k === 37) { if (p.vod) seek(-10); else flashBar(); }
+      else if (k === 39) { if (p.vod) seek(10); else flashBar(); }
+      else if (k === 13) {
+        if (S.hovEl && String(S.hovEl.className).indexOf('pb') >= 0) S.hovEl.click();
+        else if (p.vod) toggle(); else flashBar();
+      } else return;
       e.preventDefault();
       return;
     }
-    if (k === 13 && S.hovEl) {
+    if (k === 38) move(-1);
+    else if (k === 40) move(1);
+    else if (k === 33) move(-(S.vis - 1));
+    else if (k === 34) move(S.vis - 1);
+    else if (k === 37 || isBack(k)) back();
+    else if (k === 13 || k === 39) {
       var h = S.hovEl;
       while (h && !(h.getAttribute && h.getAttribute('data-k'))) h = h.parentNode;
-      if (h && h.parentNode && (h.parentNode.id === 'cats' || h.parentNode.id === 'chans')) {
-        onList(h.parentNode.id === 'cats' ? 0 : 1, { target: h });
-        e.preventDefault();
-        return;
-      }
-    }
-    if (k === 38) {
-      if (S.col === 0) { S.ci = Math.max(0, S.ci - 1); showCat(); drawCats(); }
-      else { S.chi = Math.max(0, S.chi - 1); drawChans(); }
-    } else if (k === 40) {
-      if (S.col === 0) { S.ci = Math.min(S.cats.length - 1, S.ci + 1); showCat(); drawCats(); }
-      else { S.chi = Math.min(S.list.length - 1, S.chi + 1); drawChans(); }
-    } else if (k === 37) {
-      if (S.col === 0 && S.list.length) { S.col = 1; drawCats(); drawChans(); }
-    } else if (k === 39 || isBack(k)) {
-      if (S.col === 1) { S.col = 0; drawCats(); drawChans(); }
-    } else if (k === 13) {
-      if (S.col === 0) {
-        if (S.cats[S.ci].category_id === '__out') { logout(); }
-        else if (S.list.length) { S.col = 1; drawCats(); drawChans(); }
-      } else { play(S.chi); }
-    } else { return; }
+      if (k === 13 && h && h.parentNode && h.parentNode.id === 'list') listClick(h.getAttribute('data-k'));
+      else pick(S.sc.i);
+    } else return;
     e.preventDefault();
   });
 
-  $('cats').onclick = function (e) { onList(0, e); };
-  $('chans').onclick = function (e) { onList(1, e); };
-  $('cats').onwheel = function (e) { pageCat(e.deltaY > 0 ? 3 : -3); if (e.preventDefault) e.preventDefault(); };
-  $('chans').onwheel = function (e) { pageChan(e.deltaY > 0 ? 3 : -3); if (e.preventDefault) e.preventDefault(); };
-  $('bk').onclick = closePlayer;
-  $('pv').onclick = function () { if (Date.now() - (S.lastAct || 0) < 400) return; S.lastAct = Date.now(); play(Math.max(0, S.chi - 1)); };
-  $('nx').onclick = function () { if (Date.now() - (S.lastAct || 0) < 400) return; S.lastAct = Date.now(); play(Math.min(S.list.length - 1, S.chi + 1)); };
+  function listClick(k) {
+    if (k === 'u') move(-(S.vis - 1));
+    else if (k === 'd') move(S.vis - 1);
+    else pick(parseInt(k, 10));
+  }
+  $('list').onclick = function (e) {
+    var t = e.target;
+    while (t && !(t.getAttribute && t.getAttribute('data-k'))) t = t.parentNode;
+    if (t) listClick(t.getAttribute('data-k'));
+  };
+  $('list').onwheel = function (e) { move(e.deltaY > 0 ? 3 : -3); if (e.preventDefault) e.preventDefault(); };
   document.onmouseover = function (e) { S.hovEl = e.target; };
+  $('hbk').onclick = once(back);
+  $('bk').onclick = once(closePlayer);
+  $('pv').onclick = once(function () { zap(-1); });
+  $('nx').onclick = once(function () { zap(1); });
+  $('rw').onclick = once(function () { seek(-10); });
+  $('ff').onclick = once(function () { seek(10); });
+  $('pp').onclick = once(toggle);
   $('player').onmousemove = flashBar;
   $('vid').onclick = flashBar;
   $('go').onclick = login;
   document.addEventListener('keydown', function (e) {
     if (e.keyCode === 13 && $('login').style.display !== 'none' && $('app').style.display !== 'block') {
-      var t = e.target;
-      if (t && t.tagName === 'INPUT') { login(); }
+      if (e.target && e.target.tagName === 'INPUT') login();
     }
   });
 
-  var a = store('iptv_srv'), b = store('iptv_u'), c = store('iptv_p');
+  var a = ls('iptv_srv'), b = ls('iptv_u'), c = ls('iptv_p');
   if (a) $('srv').value = a;
   if (b) $('usr').value = b;
   if (c) $('pwd').value = c;
-  if (a && b && c) { login(); } else { $('srv').focus(); }
+  if (a && b && c) login(); else $('srv').focus();
 })();
 </script>
 </body>
