@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IPTV</title>
+<style>
+html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Tahoma,Arial,sans-serif;overflow:hidden}
+#login{position:absolute;top:0;left:0;right:0;bottom:0;padding:6% 25%;box-sizing:border-box}
+#login h1{font-size:40px;margin:0 0 24px}
+#login input,#login button{display:block;width:100%;box-sizing:border-box;font-size:28px;padding:14px;margin:0 0 16px;border:3px solid #34404f;border-radius:8px;background:#1a222d;color:#fff;direction:ltr;text-align:left}
+#login button{background:#e8a317;color:#10151c;font-weight:bold;text-align:center;direction:rtl}
+#login input:focus,#login button:focus{outline:none;border-color:#fff}
+#msg{font-size:24px;color:#ffb4a8;min-height:34px}
+#app{display:none;position:absolute;top:0;left:0;right:0;bottom:0}
+#cats{position:absolute;top:0;right:0;bottom:0;width:28%;overflow:hidden;background:#161d27}
+#chans{position:absolute;top:0;left:0;bottom:0;right:28%;overflow:hidden}
+.it{padding:14px 18px;font-size:26px;border-bottom:1px solid #222c39;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.on{background:#2a3646}
+.sel{background:#e8a317;color:#10151c;font-weight:bold}
+#player{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:#000}
+#vid{width:100%;height:100%;background:#000}
+#bar{position:absolute;top:0;left:0;right:0;padding:14px 22px;font-size:28px;background:rgba(0,0,0,.65)}
+#status{position:absolute;bottom:0;left:0;right:0;padding:10px 22px;font-size:22px;background:rgba(0,0,0,.65)}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <h1>تسجيل الدخول</h1>
+  <input id="srv" type="text" placeholder="رابط السيرفر مثال: http://example.com:8080">
+  <input id="usr" type="text" placeholder="اليوزر">
+  <input id="pwd" type="text" placeholder="الباسورد">
+  <button id="go">دخول</button>
+  <div id="msg"></div>
+</div>
+
+<div id="app">
+  <div id="cats"></div>
+  <div id="chans"></div>
+</div>
+
+<div id="player">
+  <video id="vid" autoplay></video>
+  <div id="bar"></div>
+  <div id="status"></div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var S = { base: '', u: '', p: '', cats: [], streams: [], list: [], col: 0, ci: 0, chi: 0, playing: false, hls: null, barT: 0 };
+  var ROW = 56;
+
+  function store(k, v) { try { if (v === undefined) { return localStorage.getItem(k); } localStorage.setItem(k, v); } catch (e) {} return null; }
+  function msg(t) { $('msg').textContent = t || ''; }
+
+  function get(url, cb) {
+    var x = new XMLHttpRequest();
+    var done = false;
+    function fin(err, data) { if (done) return; done = true; cb(err, data); }
+    x.open('GET', url, true);
+    x.timeout = 30000;
+    x.onload = function () {
+      if (x.status !== 200) return fin('status ' + x.status);
+      try { fin(null, JSON.parse(x.responseText)); } catch (e) { fin('json'); }
+    };
+    x.onerror = function () { fin('network'); };
+    x.ontimeout = function () { fin('timeout'); };
+    try { x.send(); } catch (e) { fin('blocked'); }
+  }
+
+  function api(action, cb) {
+    get(S.base + '/player_api.php?username=' + encodeURIComponent(S.u) + '&password=' + encodeURIComponent(S.p) + (action ? '&action=' + action : ''), cb);
+  }
+
+  function login() {
+    var s = $('srv').value.replace(/\s/g, '');
+    if (!/^https?:\/\//i.test(s)) s = 'http://' + s;
+    S.base = s.replace(/\/+$/, '');
+    S.u = $('usr').value.replace(/\s/g, '');
+    S.p = $('pwd').value.replace(/\s/g, '');
+    if (!S.base || !S.u || !S.p) { msg('املأ الخانات الثلاثة'); return; }
+    msg('جاري الاتصال...');
+    api('', function (err, info) {
+      if (err) { msg(explain(err)); return; }
+      if (!info || !info.user_info || info.user_info.auth === 0) { msg('اليوزر أو الباسورد غلط'); return; }
+      store('iptv_srv', S.base); store('iptv_u', S.u); store('iptv_p', S.p);
+      msg('جاري تحميل القنوات...');
+      api('get_live_categories', function (e1, cats) {
+        if (e1) { msg(explain(e1)); return; }
+        api('get_live_streams', function (e2, streams) {
+          if (e2) { msg(explain(e2)); return; }
+          S.cats = [{ category_id: '', category_name: 'كل القنوات' }].concat(cats || []);
+          S.cats.push({ category_id: '__out', category_name: 'تغيير الحساب' });
+          S.streams = streams || [];
+          msg('');
+          $('login').style.display = 'none';
+          $('app').style.display = 'block';
+          S.col = 0; S.ci = 0; S.chi = 0;
+          showCat();
+          drawCats();
+        });
+      });
+    });
+  }
+
+  function explain(err) {
+    if (err === 'network' || err === 'blocked') {
+      return 'الصفحة مش قادرة توصل للسيرفر. غالباً المتصفح بيمنع السيرفر http لأن الصفحة https، أو السيرفر مش بيسمح بالطلبات من المتصفح. جرب تستضيف الصفحة على موقع http.';
+    }
+    if (err === 'timeout') return 'السيرفر اتأخر في الرد. جرب تاني.';
+    return 'حصل خطأ: ' + err;
+  }
+
+  function showCat() {
+    var c = S.cats[S.ci];
+    if (!c || c.category_id === '__out') { S.list = []; }
+    else if (c.category_id === '') { S.list = S.streams; }
+    else { S.list = S.streams.filter(function (s) { return String(s.category_id) === String(c.category_id); }); }
+    S.chi = 0;
+    drawChans();
+  }
+
+  function rows(items, idx, nameFn, host, activeCol) {
+    var visible = Math.floor(window.innerHeight / ROW) - 1;
+    var start = Math.max(0, Math.min(idx - Math.floor(visible / 2), items.length - visible));
+    var end = Math.min(items.length, start + visible + 1);
+    var h = '';
+    for (var i = start; i < end; i++) {
+      var cls = 'it' + (i === idx ? (activeCol ? ' sel' : ' on') : '');
+      h += '<div class="' + cls + '">' + nameFn(items[i]) + '</div>';
+    }
+    host.innerHTML = h;
+  }
+
+  function esc(t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
+  function drawCats() { rows(S.cats, S.ci, function (c) { return esc(c.category_name); }, $('cats'), S.col === 0); }
+  function drawChans() {
+    if (!S.list.length) { $('chans').innerHTML = '<div class="it">' + (S.cats[S.ci].category_id === '__out' ? 'اضغط OK لتسجيل الخروج' : 'مفيش قنوات هنا') + '</div>'; return; }
+    rows(S.list, S.chi, function (s) { return esc(s.name); }, $('chans'), S.col === 1);
+  }
+
+  function play(i) {
+    var s = S.list[i];
+    if (!s) return;
+    S.chi = i;
+    var url = S.base + '/live/' + encodeURIComponent(S.u) + '/' + encodeURIComponent(S.p) + '/' + s.stream_id + '.m3u8';
+    var v = $('vid');
+    stop();
+    $('player').style.display = 'block';
+    S.playing = true;
+    $('bar').textContent = s.name;
+    $('status').textContent = 'جاري التشغيل...';
+    flashBar();
+    if (window.Hls && Hls.isSupported()) {
+      S.hls = new Hls({ lowLatencyMode: false });
+      S.hls.on(Hls.Events.ERROR, function (ev, d) {
+        if (d && d.fatal) { $('status').textContent = 'القناة مش شغالة أو السيرفر رفض البث'; $('status').style.display = 'block'; }
+      });
+      S.hls.loadSource(url);
+      S.hls.attachMedia(v);
+      S.hls.on(Hls.Events.MANIFEST_PARSED, function () { try { v.play(); } catch (e) {} });
+    } else {
+      v.src = url;
+      try { v.play(); } catch (e) {}
+    }
+    v.onplaying = function () { $('status').style.display = 'none'; };
+    v.onerror = function () { $('status').textContent = 'القناة مش شغالة أو المتصفح مش بيدعم الصيغة'; $('status').style.display = 'block'; };
+  }
+
+  function stop() {
+    var v = $('vid');
+    if (S.hls) { try { S.hls.destroy(); } catch (e) {} S.hls = null; }
+    try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {}
+  }
+
+  function flashBar() {
+    $('bar').style.display = 'block';
+    clearTimeout(S.barT);
+    S.barT = setTimeout(function () { $('bar').style.display = 'none'; }, 4000);
+  }
+
+  function closePlayer() { stop(); S.playing = false; $('player').style.display = 'none'; drawChans(); }
+
+  function logout() {
+    store('iptv_u', ''); store('iptv_p', '');
+    $('app').style.display = 'none';
+    $('login').style.display = 'block';
+    $('srv').value = S.base; $('usr').value = ''; $('pwd').value = '';
+    $('srv').focus();
+  }
+
+  function isBack(k) { return k === 8 || k === 27 || k === 461 || k === 10009 || k === 10182 || k === 166; }
+
+  document.addEventListener('keydown', function (e) {
+    var k = e.keyCode;
+    if ($('app').style.display !== 'block') { return; }
+    if (S.playing) {
+      if (isBack(k)) { closePlayer(); }
+      else if (k === 38 || k === 427) { play(Math.max(0, S.chi - 1)); }
+      else if (k === 40 || k === 428) { play(Math.min(S.list.length - 1, S.chi + 1)); }
+      else if (k === 13) { flashBar(); }
+      else { return; }
+      e.preventDefault();
+      return;
+    }
+    if (k === 38) {
+      if (S.col === 0) { S.ci = Math.max(0, S.ci - 1); showCat(); drawCats(); }
+      else { S.chi = Math.max(0, S.chi - 1); drawChans(); }
+    } else if (k === 40) {
+      if (S.col === 0) { S.ci = Math.min(S.cats.length - 1, S.ci + 1); showCat(); drawCats(); }
+      else { S.chi = Math.min(S.list.length - 1, S.chi + 1); drawChans(); }
+    } else if (k === 37) {
+      if (S.col === 0 && S.list.length) { S.col = 1; drawCats(); drawChans(); }
+    } else if (k === 39 || isBack(k)) {
+      if (S.col === 1) { S.col = 0; drawCats(); drawChans(); }
+    } else if (k === 13) {
+      if (S.col === 0) {
+        if (S.cats[S.ci].category_id === '__out') { logout(); }
+        else if (S.list.length) { S.col = 1; drawCats(); drawChans(); }
+      } else { play(S.chi); }
+    } else { return; }
+    e.preventDefault();
+  });
+
+  $('go').onclick = login;
+  document.addEventListener('keydown', function (e) {
+    if (e.keyCode === 13 && $('login').style.display !== 'none' && $('app').style.display !== 'block') {
+      var t = e.target;
+      if (t && t.tagName === 'INPUT') { login(); }
+    }
+  });
+
+  var a = store('iptv_srv'), b = store('iptv_u'), c = store('iptv_p');
+  if (a) $('srv').value = a;
+  if (b) $('usr').value = b;
+  if (c) $('pwd').value = c;
+  if (a && b && c) { login(); } else { $('srv').focus(); }
+})();
+</script>
+</body>
+</html>
