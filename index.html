@@ -19,6 +19,12 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 .sel{background:#e8a317;color:#10151c;font-weight:bold}
 .nv{text-align:center;background:#243041;color:#e8a317;font-weight:bold}
 .pb{display:inline-block;margin:0 10px;padding:4px 18px;background:#e8a317;color:#10151c;border-radius:8px;cursor:pointer;font-size:26px}
+#list{position:absolute;top:80px;right:0;left:0;bottom:0;overflow:hidden}
+#app.ws #list{left:32%}
+#side{display:none;position:absolute;top:80px;left:0;bottom:0;width:32%;padding:20px;box-sizing:border-box;background:#0d1218;overflow:hidden}
+#pimg{display:none;width:100%;max-height:58%;object-fit:contain;margin:0 auto 14px}
+#pt{font-size:28px;font-weight:bold;margin-bottom:8px}
+#pd{font-size:22px;color:#aeb9c7;line-height:1.5}
 #player{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:#000}
 #vid{width:100%;height:100%;background:#000}
 #bar{position:absolute;top:0;left:0;right:0;padding:14px 22px;font-size:28px;background:rgba(0,0,0,.7)}
@@ -38,6 +44,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 
 <div id="app">
   <div id="hdr"><span class="pb" id="hbk">رجوع</span><span id="ttl2"></span></div>
+  <div id="side"><img id="pimg" alt=""><div id="pt"></div><div id="pd"></div></div>
   <div id="list"></div>
 </div>
 
@@ -141,6 +148,18 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     h += '<div class="it nv" data-k="d">▼ للأسفل</div>';
     S.hovEl = null;
     $('list').innerHTML = h;
+    var ws = items.some(function (x) { return x.img; });
+    $('app').className = ws ? 'ws' : '';
+    $('side').style.display = ws ? 'block' : 'none';
+    if (ws) side(items[sc.i]);
+  }
+  function side(it) {
+    if (!it) return;
+    var im = $('pimg');
+    im.onerror = function () { im.style.display = 'none'; };
+    if (it.img) { im.src = it.img; im.style.display = 'block'; } else { im.style.display = 'none'; }
+    $('pt').textContent = it.l || '';
+    $('pd').textContent = it.sub || '';
   }
   function move(d) {
     var n = S.sc.items.length;
@@ -182,9 +201,9 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     var src = cid === '' ? c.all : c.all.filter(function (s) { return String(s.category_id) === String(cid); });
     var base = S.base + '/', cr = '/' + enc(S.u) + '/' + enc(S.p) + '/';
     var items = src.map(function (s) {
-      if (sec === 'live') return { l: s.name, p: { type: 'l', key: 'l' + s.stream_id, title: s.name, url: base + 'live' + cr + s.stream_id + '.m3u8', live: true } };
-      if (sec === 'vod') return { l: s.name, p: { type: 'm', key: 'm' + s.stream_id, title: s.name, url: base + 'movie' + cr + s.stream_id + '.' + (s.container_extension || 'mp4'), vod: true } };
-      return { l: s.name, f: function () { openSeries(s); } };
+      if (sec === 'live') return { l: s.name, img: s.stream_icon, p: { type: 'l', key: 'l' + s.stream_id, title: s.name, url: base + 'live' + cr + s.stream_id + '.m3u8', live: true } };
+      if (sec === 'vod') return { l: s.name, img: s.stream_icon, sub: s.rating && s.rating !== '0' ? 'التقييم: ' + s.rating : '', p: { type: 'm', img: s.stream_icon, key: 'm' + s.stream_id, title: s.name, url: base + 'movie' + cr + s.stream_id + '.' + (s.container_extension || 'mp4'), vod: true } };
+      return { l: s.name, img: s.cover, sub: String(s.plot || '').slice(0, 400), f: function () { openSeries(s); } };
     });
     if (!items.length) items = [{ l: 'مفيش حاجة هنا', f: function () {} }];
     return { t: title, i: 0, items: items };
@@ -198,7 +217,8 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       if (!ks.length) { hdr('مفيش حلقات للمسلسل ده'); return; }
       function epScreen(k) {
         return { t: 'الموسم ' + k, i: 0, items: arr(eps[k]).map(function (x) {
-          return { l: (x.episode_num || '') + ' - ' + (x.title || 'حلقة'), p: { type: 'e', key: 'e' + x.id, title: s.name + ' - م' + k + ' ح' + (x.episode_num || ''), url: S.base + '/series/' + enc(S.u) + '/' + enc(S.p) + '/' + x.id + '.' + (x.container_extension || 'mp4'), vod: true } };
+          var im = (x.info && x.info.movie_image) || s.cover;
+          return { l: (x.episode_num || '') + ' - ' + (x.title || 'حلقة'), img: im, sub: String((x.info && x.info.plot) || s.plot || '').slice(0, 400), p: { type: 'e', img: im, key: 'e' + x.id, title: s.name + ' - م' + k + ' ح' + (x.episode_num || ''), url: S.base + '/series/' + enc(S.u) + '/' + enc(S.p) + '/' + x.id + '.' + (x.container_extension || 'mp4'), vod: true } };
         }) };
       }
       if (ks.length === 1) { var one = epScreen(ks[0]); one.t = s.name; push(one); return; }
@@ -213,7 +233,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     a.sort(function (x, y) { return y.ts - x.ts; });
     var items = a.map(function (o) {
       var pc = o.dur ? Math.round(o.pos * 100 / o.dur) : 0;
-      return { l: o.title + '  —  ' + pc + '%  (' + fmt(o.pos) + ')', p: { type: o.type, key: o.key, title: o.title, url: o.url, vod: true } };
+      return { l: o.title + '  —  ' + pc + '%  (' + fmt(o.pos) + ')', img: o.img, p: { type: o.type, img: o.img, key: o.key, title: o.title, url: o.url, vod: true } };
     });
     if (items.length) items.push({ l: 'مسح السجل', f: function () { saveProg({}); S.stack.pop(); push(contScreen()); } });
     else items = [{ l: 'مفيش حاجة لسه. ابدأ فيلم أو حلقة وهتظهر هنا', f: function () {} }];
@@ -226,7 +246,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     if (!p || !p.vod || !v.duration || isNaN(v.duration)) return;
     var P = prog();
     if (v.currentTime > v.duration * 0.95) { delete P[p.key]; }
-    else if (v.currentTime > 10) { P[p.key] = { key: p.key, type: p.type, title: p.title, url: p.url, pos: v.currentTime, dur: v.duration, ts: Date.now() }; }
+    else if (v.currentTime > 10) { P[p.key] = { key: p.key, type: p.type, img: p.img, title: p.title, url: p.url, pos: v.currentTime, dur: v.duration, ts: Date.now() }; }
     saveProg(P);
   }
   function stopV() {
@@ -328,7 +348,15 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     if (t) listClick(t.getAttribute('data-k'));
   };
   $('list').onwheel = function (e) { move(e.deltaY > 0 ? 3 : -3); if (e.preventDefault) e.preventDefault(); };
-  document.onmouseover = function (e) { S.hovEl = e.target; };
+  document.onmouseover = function (e) {
+    S.hovEl = e.target;
+    var t = e.target;
+    while (t && !(t.getAttribute && t.getAttribute('data-k'))) t = t.parentNode;
+    if (t && t.parentNode && t.parentNode.id === 'list' && S.sc && !S.playing) {
+      var k = parseInt(t.getAttribute('data-k'), 10);
+      if (!isNaN(k) && S.sc.items[k] && S.sc.items[k].img) side(S.sc.items[k]);
+    }
+  };
   $('hbk').onclick = once(back);
   $('bk').onclick = once(closePlayer);
   $('pv').onclick = once(function () { zap(-1); });
