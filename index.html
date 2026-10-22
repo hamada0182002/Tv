@@ -18,7 +18,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 #ttl2{display:inline-block;max-width:60%;overflow:hidden;text-overflow:ellipsis;vertical-align:top;line-height:64px}
 .rb{position:absolute;top:8px;width:64px;height:64px;line-height:64px;border-radius:50%;background:rgba(255,255,255,.16);text-align:center;font-size:32px;font-weight:normal;cursor:pointer}
 .rb:hover{background:#e8a317;color:#10151c}
-#sb{display:none;left:192px}
+#sb{display:none;left:40px}
 #srch{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.88);z-index:50}
 #sbox{margin:12% auto 0;width:60%}
 #sh{font-size:32px;margin-bottom:16px}
@@ -89,7 +89,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 </div>
 
 <div id="app">
-  <div id="hdr"><span class="rb" id="hbk">→</span><span id="ttl2"></span><span class="rb" id="pu"><svg viewBox="0 0 24 24" width="34" height="34" style="vertical-align:middle"><polyline points="5,16 12,8 19,16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="rb" id="pd2"><svg viewBox="0 0 24 24" width="34" height="34" style="vertical-align:middle"><polyline points="5,8 12,16 19,8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="rb" id="sb"><svg viewBox="0 0 24 24" width="34" height="34" style="vertical-align:middle"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2.6"/><line x1="15" y1="15" x2="21" y2="21" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span></div>
+  <div id="hdr"><span class="rb" id="hbk">→</span><span id="ttl2"></span><span class="rb" id="sb"><svg viewBox="0 0 24 24" width="34" height="34" style="vertical-align:middle"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2.6"/><line x1="15" y1="15" x2="21" y2="21" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span></div>
   <div id="srch"><div id="sbox"><div id="sh"></div><input id="sq" type="text" placeholder="اضغط هنا واكتب الاسم"><span class="pb" id="sgo">بحث</span><span class="pb" id="scn">إلغاء</span></div></div>
   <div id="rsm"><div id="rbox"><div id="rtt"></div><div id="rq"></div><div class="it" id="rb1"></div><div class="it" id="rb2">تشغيل من البداية</div></div></div>
   <div id="list"></div>
@@ -229,9 +229,10 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       h += '</div></div></div>';
       $('list').className = '';
     } else if (sc.grid) {
-      var g = 14, cols = Math.max(3, Math.min(8, Math.floor((W - 72) / 175)));
-      var cw = Math.floor((W - 72) / cols) - g, ph = Math.round(cw * 1.42), ch = ph + 44 + g;
-      var rv = Math.max(1, Math.floor((H - 100) / ch));
+      var g = 14, cols = 6;
+      var cw = Math.floor((W - 72) / cols) - g, rv = 2;
+      var ph = Math.floor((H - 100) / rv) - 44 - g;
+      ph = Math.max(cw, Math.min(ph, Math.round(cw * 1.5)));
       S.cols = cols; S.rv = rv;
       var a = Math.floor(Math.floor(sc.i / cols) / rv) * rv * cols, z = Math.min(items.length, a + rv * cols);
       for (i = a; i < z; i++) {
@@ -783,8 +784,6 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   $('rb2').onclick = once(function () { choose(1); });
   $('sgo').onclick = once(doSearch);
   $('scn').onclick = once(closeSrch);
-  $('pu').onclick = once(function () { listClick('u'); });
-  $('pd2').onclick = once(function () { listClick('d'); });
   $('bk').onclick = once(closePlayer);
   $('pv').onclick = once(function () { zap(-1); });
   $('nx').onclick = once(function () { zap(1); });
