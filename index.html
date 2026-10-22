@@ -130,6 +130,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     var visible = Math.floor(window.innerHeight / ROW) - 3;
     if (visible < 3) visible = 3;
     S.vis = visible;
+    S.hovEl = null;
     var start = Math.max(0, Math.min(idx - Math.floor(visible / 2), items.length - visible));
     var end = Math.min(items.length, start + visible);
     var h = '<div class="it nv" data-k="u">▲ للأعلى</div>';
@@ -148,6 +149,8 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     var t = e.target;
     while (t && !(t.getAttribute && t.getAttribute('data-k'))) t = t.parentNode;
     if (!t) return;
+    if (Date.now() - (S.lastAct || 0) < 400) return;
+    S.lastAct = Date.now();
     var k = t.getAttribute('data-k'), step = Math.max(1, (S.vis || 8) - 1);
     if (col === 0) {
       if (k === 'u') pageCat(-step);
@@ -230,10 +233,19 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       if (isBack(k)) { closePlayer(); }
       else if (k === 38 || k === 427 || k === 33) { play(Math.max(0, S.chi - 1)); }
       else if (k === 40 || k === 428 || k === 34) { play(Math.min(S.list.length - 1, S.chi + 1)); }
-      else if (k === 13) { flashBar(); }
+      else if (k === 13) { if (S.hovEl && String(S.hovEl.className).indexOf('pb') >= 0) { S.hovEl.click(); } else { flashBar(); } }
       else { return; }
       e.preventDefault();
       return;
+    }
+    if (k === 13 && S.hovEl) {
+      var h = S.hovEl;
+      while (h && !(h.getAttribute && h.getAttribute('data-k'))) h = h.parentNode;
+      if (h && h.parentNode && (h.parentNode.id === 'cats' || h.parentNode.id === 'chans')) {
+        onList(h.parentNode.id === 'cats' ? 0 : 1, { target: h });
+        e.preventDefault();
+        return;
+      }
     }
     if (k === 38) {
       if (S.col === 0) { S.ci = Math.max(0, S.ci - 1); showCat(); drawCats(); }
@@ -259,8 +271,9 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   $('cats').onwheel = function (e) { pageCat(e.deltaY > 0 ? 3 : -3); if (e.preventDefault) e.preventDefault(); };
   $('chans').onwheel = function (e) { pageChan(e.deltaY > 0 ? 3 : -3); if (e.preventDefault) e.preventDefault(); };
   $('bk').onclick = closePlayer;
-  $('pv').onclick = function () { play(Math.max(0, S.chi - 1)); };
-  $('nx').onclick = function () { play(Math.min(S.list.length - 1, S.chi + 1)); };
+  $('pv').onclick = function () { if (Date.now() - (S.lastAct || 0) < 400) return; S.lastAct = Date.now(); play(Math.max(0, S.chi - 1)); };
+  $('nx').onclick = function () { if (Date.now() - (S.lastAct || 0) < 400) return; S.lastAct = Date.now(); play(Math.min(S.list.length - 1, S.chi + 1)); };
+  document.onmouseover = function (e) { S.hovEl = e.target; };
   $('player').onmousemove = flashBar;
   $('vid').onclick = flashBar;
   $('go').onclick = login;
