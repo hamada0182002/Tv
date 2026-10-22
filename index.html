@@ -67,8 +67,8 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 .pst img{width:100%;height:100%;object-fit:cover;display:block}
 .pst.on{box-shadow:0 0 0 5px #e8a317}
 .nm{font-size:22px;text-align:center;margin-top:8px;height:30px;line-height:30px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#player{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:#000}
-#vid{width:100%;height:100%;background:#000;object-fit:fill}
+#player{overflow:hidden;display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:#000}
+#vid{width:100%;height:100%;background:#000;object-fit:fill;transform-origin:center center}
 #bar{position:absolute;top:0;left:0;right:0;padding:14px 22px;font-size:28px;background:rgba(0,0,0,.7)}
 #bot{display:none;position:absolute;left:0;right:0;bottom:46px;padding:10px 26px;background:rgba(0,0,0,.6);direction:ltr;font-size:26px;align-items:center}
 #bot span{width:110px;text-align:center;flex:none}
@@ -98,7 +98,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 <div id="player">
   <video id="vid" autoplay></video>
   <div id="bar"><span id="ttl"></span> <span id="tm"></span><br>
-    <span class="pb" id="bk">رجوع</span><span class="pb" id="pv">▲ السابقة</span><span class="pb" id="nx">▼ التالية</span><span class="pb" id="rw">− 10 ثواني</span><span class="pb" id="pp">تشغيل / إيقاف</span><span class="pb" id="ff">+ 10 ثواني</span>
+    <span class="pb" id="bk">رجوع</span><span class="pb" id="pv">▲ السابقة</span><span class="pb" id="nx">▼ التالية</span><span class="pb" id="zp">تكبير +</span><span class="pb" id="zm">تكبير −</span><span class="pb" id="rw">− 10 ثواني</span><span class="pb" id="pp">تشغيل / إيقاف</span><span class="pb" id="ff">+ 10 ثواني</span>
   </div>
   <div id="bot"><span id="tc">0:00</span><div id="pbar"><div id="pfill"></div></div><span id="td">0:00</span></div>
   <div id="status"></div>
@@ -488,14 +488,21 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   function autoFit() {
     var v = $('vid'), vw = v.videoWidth, vh = v.videoHeight;
     v.style.objectFit = 'fill';
-    v.style.transform = '';
-    if (vw && vh) {
-      if (!('objectFit' in v.style)) {
-        var sa = window.innerWidth / window.innerHeight, va = vw / vh;
-        v.style.transform = va < sa ? 'scaleX(' + (sa / va) + ')' : 'scaleY(' + (va / sa) + ')';
-      }
-      $('tm').textContent = vw + '×' + vh;
-    }
+    var z = parseFloat(ls('iptv_z' + vh)) || 1;
+    v.style.transform = z > 1 ? 'scale(' + z + ')' : '';
+    if (vw && vh) $('tm').textContent = vw + '×' + vh + (z > 1 ? '  تكبير ' + Math.round(z * 100) + '%' : '');
+  }
+  function zoom(d) {
+    var v = $('vid'), vh = v.videoHeight || 0, z = parseFloat(ls('iptv_z' + vh)) || 1;
+    z = Math.max(1, Math.min(2, Math.round((z + d) * 100) / 100));
+    ls('iptv_z' + vh, String(z));
+    autoFit();
+    var st = $('status');
+    st.style.display = 'block';
+    st.textContent = 'التكبير: ' + Math.round(z * 100) + '%' + (vh ? '  (للمقاس ' + vh + 'p)' : '');
+    clearTimeout(S.fitT);
+    S.fitT = setTimeout(function () { if ($('vid').currentTime > 0 && !S.userPause) st.style.display = 'none'; }, 2000);
+    flashBar();
   }
   function realPlay(p, i, resume) {
     var v = $('vid');
@@ -727,6 +734,8 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       else if (k === 40) { if (p.live) zap(1); else seek(60); }
       else if (k === 37) { if (p.vod) seek(-10); else flashBar(); }
       else if (k === 39) { if (p.vod) seek(10); else flashBar(); }
+      else if (k === 57 || k === 105) { zoom(0.1); }
+      else if (k === 55 || k === 103) { zoom(-0.1); }
       else if (k === 13) {
         if (S.hovEl && String(S.hovEl.className).indexOf('pb') >= 0) S.hovEl.click();
         else if (p.vod) toggle(); else flashBar();
@@ -782,6 +791,8 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   $('rw').onclick = once(function () { seek(-10); });
   $('ff').onclick = once(function () { seek(10); });
   $('pp').onclick = once(toggle);
+  $('zp').onclick = once(function () { zoom(0.1); });
+  $('zm').onclick = once(function () { zoom(-0.1); });
   $('vid').addEventListener('loadedmetadata', autoFit);
   $('vid').addEventListener('resize', autoFit);
   $('player').onmousemove = flashBar;
