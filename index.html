@@ -91,13 +91,14 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 <div id="player">
   <video id="vid" autoplay></video>
   <div id="bar"><span id="ttl"></span> <span id="tm"></span><br>
-    <span class="pb" id="bk">رجوع</span><span class="pb" id="pv">▲ السابقة</span><span class="pb" id="nx">▼ التالية</span><span class="pb" id="rw">− 10 ثواني</span><span class="pb" id="pp">تشغيل / إيقاف</span><span class="pb" id="ff">+ 10 ثواني</span>
+    <span class="pb" id="bk">رجوع</span><span class="pb" id="pv">▲ السابقة</span><span class="pb" id="nx">▼ التالية</span><span class="pb" id="md">تبديل طريقة البث</span><span class="pb" id="rw">− 10 ثواني</span><span class="pb" id="pp">تشغيل / إيقاف</span><span class="pb" id="ff">+ 10 ثواني</span>
   </div>
   <div id="bot"><span id="tc">0:00</span><div id="pbar"><div id="pfill"></div></div><span id="td">0:00</span></div>
   <div id="status"></div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.8/hls.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.js"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -436,9 +437,11 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   }
   function realPlay(p, i, resume) {
     var v = $('vid');
+    clearTimeout(S.rcT); S.rcT = 0; clearTimeout(S.waitT);
     stopV();
     S.p0 = p; S.pi = i; S.pl = S.sc.items; S.playing = true;
     resume = resume || 0;
+    S.resume = resume; S.rc = 0; S.nr = 0; S.mr = 0; S.vfix = 0; S.played = false; S.userPause = false; S.frOK = S.frOK || false;
     $('player').style.display = 'block';
     $('ttl').textContent = p.title;
     $('tm').textContent = '';
@@ -449,29 +452,144 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     $('pv').textContent = ep ? 'الحلقة السابقة' : 'السابقة';
     $('nx').textContent = ep ? 'الحلقة التالية' : 'التالية';
     ['rw', 'ff', 'pp'].forEach(function (id) { $(id).style.display = p.vod ? 'inline-block' : 'none'; });
-    v.onplaying = function () { S.userPause = false; $('status').style.display = 'none'; };
+    v.onplaying = function () { S.userPause = false; S.played = true; clearTimeout(S.waitT); $('status').style.display = 'none'; };
+    v.onwaiting = function () {
+      clearTimeout(S.waitT);
+      S.waitT = setTimeout(function () { if (S.playing && !S.userPause && !S.rcT && $('vid').readyState < 3) msg('جاري التحميل...'); }, 3000);
+    };
     v.onpause = function () { if (S.userPause && S.playing) { $('status').style.display = 'block'; $('status').textContent = 'متوقف مؤقتاً'; } };
-    v.onerror = function () { $('status').style.display = 'block'; $('status').textContent = 'مش شغال. ممكن القناة واقفة أو الشاشة مش بتدعم صيغة الفيديو (' + (p.url.split('.').pop()) + ')'; };
-    v.onloadedmetadata = function () { if (resume) { try { v.currentTime = resume; } catch (e) {} } };
+    v.onerror = function () {
+      if (!v.getAttribute('src') || S.rcT || !S.playing) return;
+      if (!S.played && !p.live && S.rc >= 3) { msg('مش شغال. ممكن الشاشة مش بتدعم صيغة الفيديو (' + (p.url.split('.').pop()) + ')'); return; }
+      reconnect('error');
+    };
+    v.onloadedmetadata = function () { if (S.resume) { try { v.currentTime = S.resume; } catch (e) {} S.resume = 0; } };
     v.ontimeupdate = function () {
       if (!p.vod) return;
       updProg();
       var n = Date.now();
       if (n - S.sv > 5000) { S.sv = n; saveNow(); }
     };
-    v.onended = function () { saveNow(); if (p.type === 'e' && S.pl[S.pi + 1] && S.pl[S.pi + 1].p) zap(1); else closePlayer(); };
+    v.onended = function () {
+      saveNow();
+      if (p.live) { reconnect('ended'); return; }
+      var d = v.duration;
+      if (p.vod && d && isFinite(d) && v.currentTime < d - 30 && S.rc < 3) { reconnect('ended'); return; }
+      if (p.type === 'e' && S.pl[S.pi + 1] && S.pl[S.pi + 1].p) zap(1); else closePlayer();
+    };
+    startStream(p);
+    startWd();
+    flashBar();
+  }
+
+  /* ---------- auto-recovery (إعادة التشغيل التلقائي) ---------- */
+  function msg(t) { var s = $('status'); s.style.display = 'block'; s.textContent = t; }
+
+  function startStream(p) {
+    var v = $('vid'), now = Date.now();
+    S.w = { time: -1, fr: -1, tt: now, tf: now, bad: now, start: now };
     if (p.live && window.Hls && Hls.isSupported()) {
-      S.hls = new Hls({ lowLatencyMode: false });
-      S.hls.on(Hls.Events.ERROR, function (ev, d) { if (d && d.fatal) { $('status').style.display = 'block'; $('status').textContent = 'القناة مش شغالة أو السيرفر رفض البث'; } });
-      S.hls.loadSource(p.url);
-      S.hls.attachMedia(v);
-      S.hls.on(Hls.Events.MANIFEST_PARSED, function () { try { v.play(); } catch (e) {} });
+      var h = new Hls({
+        lowLatencyMode: false,
+        backBufferLength: 30,
+        maxBufferHole: 0.5,
+        nudgeMaxRetry: 10,
+        manifestLoadingMaxRetry: 4, manifestLoadingRetryDelay: 1000, manifestLoadingMaxRetryTimeout: 8000,
+        levelLoadingMaxRetry: 4, levelLoadingRetryDelay: 1000, levelLoadingMaxRetryTimeout: 8000,
+        fragLoadingMaxRetry: 5, fragLoadingRetryDelay: 1000, fragLoadingMaxRetryTimeout: 8000
+      });
+      S.hls = h;
+      h.on(Hls.Events.ERROR, function (ev, d) { if (S.hls === h && d && d.fatal) hlsFatal(d); });
+      h.on(Hls.Events.MANIFEST_PARSED, function () { try { v.play(); } catch (e) {} });
+      h.loadSource(p.url);
+      h.attachMedia(v);
     } else {
       v.src = p.url;
       try { v.play(); } catch (e) {}
     }
-    flashBar();
   }
+
+  function hlsFatal(d) {
+    var h = S.hls;
+    if (!h || S.rcT) return;
+    if (d.type === Hls.ErrorTypes.NETWORK_ERROR) {
+      if (S.nr++ < 2) { msg('الشبكة أو السيرفر مش بيرد... بحاول تاني'); try { h.startLoad(); } catch (e) { reconnect('net'); } }
+      else reconnect('net');
+    } else if (d.type === Hls.ErrorTypes.MEDIA_ERROR) {
+      S.mr++;
+      if (S.mr === 1) { try { h.recoverMediaError(); } catch (e) { reconnect('media'); } }
+      else if (S.mr === 2) { try { h.swapAudioCodec(); h.recoverMediaError(); } catch (e) { reconnect('media'); } }
+      else reconnect('media');
+    } else reconnect('fatal');
+  }
+
+  /* يقفل البث ويفتحه من الأول بعد مهلة (بتزيد كل محاولة لحد ١٥ ثانية علشان منضغطش على السيرفر) */
+  function reconnect(why, delay) {
+    var v = $('vid'), p = S.p0;
+    if (!p || !S.playing || S.rcT || S.asking) return;
+    S.rc++;
+    if (p.vod && v.currentTime > 5) S.resume = Math.max(0, v.currentTime - 3);
+    var wait = delay !== undefined ? delay : Math.min(1500 * S.rc, 15000);
+    msg(why === 'freeze' ? 'الصورة واقفة... بصلّح' : 'انقطع البث... بعيد الاتصال تلقائياً (محاولة ' + S.rc + ')');
+    S.rcT = setTimeout(function () {
+      S.rcT = 0;
+      if (S.p0 === p && S.playing) { S.w = null; startStream(p); if (S.w) { S.w.bad = Date.now(); } }
+    }, wait);
+    stopV();
+  }
+
+  function sig(v) {
+    try {
+      var c = S.cv || (S.cv = document.createElement('canvas'));
+      c.width = 16; c.height = 9;
+      var x = c.getContext('2d');
+      x.drawImage(v, 0, 0, 16, 9);
+      var d = x.getImageData(0, 0, 16, 9).data, s = 0, i;
+      for (i = 0; i < d.length; i += 4) s = (s * 31 + d[i] + d[i + 1] * 3 + d[i + 2] * 7) | 0;
+      return s;
+    } catch (e) { return -1; }
+  }
+  /* عدّاد الفريمات المتفكّكة. لو الشاشة مش بتدعمه بنقارن صورة مصغّرة في أول دقيقة بس */
+  function frames(v, w, now) {
+    var n = -1;
+    try { var q = v.getVideoPlaybackQuality && v.getVideoPlaybackQuality(); if (q && typeof q.totalVideoFrames === 'number') n = q.totalVideoFrames; } catch (e) {}
+    if (n < 0 && typeof v.webkitDecodedFrameCount === 'number') n = v.webkitDecodedFrameCount;
+    if (n > 2) S.frOK = true;
+    if (n >= 0 && S.frOK) return { n: n, ms: 5000 };
+    if (now - w.start < 60000) { var s = sig(v); if (s !== -1) return { n: s, ms: 8000 }; }
+    return { n: -1, ms: 0 };
+  }
+  function hasVideo(v) {
+    if (v.videoWidth > 0) return true;
+    try { var l = S.hls && S.hls.levels && S.hls.levels[Math.max(0, S.hls.currentLevel)]; return !!(l && l.videoCodec); } catch (e) { return false; }
+  }
+
+  function startWd() { clearInterval(S.wd); S.wd = setInterval(wdTick, 1000); }
+  function stopWd() { clearInterval(S.wd); S.wd = 0; clearTimeout(S.rcT); S.rcT = 0; clearTimeout(S.waitT); }
+  function wdTick() {
+    var v = $('vid'), w = S.w, p = S.p0, now = Date.now();
+    if (!S.playing || !p || !w || S.rcT || S.asking) return;
+    if (S.userPause) { w.tt = w.tf = now; return; }
+    if (v.paused) { try { v.play(); } catch (e) {} }
+    var ct = v.currentTime, f = frames(v, w, now);
+    if (Math.abs(ct - w.time) > 0.05) { w.tt = now; w.time = ct; }
+    if (f.n < 0 || f.n !== w.fr) { w.tf = now; w.fr = f.n; }
+    var lim = (!S.played || v.seeking) ? 25000 : (p.live ? 10000 : 15000);
+    // 1) كل حاجة واقفة (صوت وصورة): السيرفر مش بيبعت
+    if (now - w.tt > lim) { w.tt = w.tf = w.bad = now; reconnect('stall'); return; }
+    // 2) الصوت شغال والصورة ثابتة
+    if (f.n >= 0 && hasVideo(v) && now - w.tt < 2500 && now - w.tf > f.ms && v.readyState >= 2) {
+      w.tf = w.bad = now;
+      if (S.vfix++ === 0 && S.hls && S.hls.liveSyncPosition) {
+        msg('الصورة واقفة... بنط لآخر البث');
+        try { v.currentTime = S.hls.liveSyncPosition; } catch (e) {}
+      } else reconnect('freeze', 300);
+      return;
+    }
+    if (now - w.tt > 3000 || (f.n >= 0 && now - w.tf > 3000)) w.bad = now;
+    if (now - w.bad > 20000 && (S.rc || S.nr || S.mr || S.vfix)) { S.rc = S.nr = S.mr = S.vfix = 0; }
+  }
+  window.addEventListener('online', function () { if (S.playing && S.p0 && !S.userPause) reconnect('online', 500); });
   function updProg() {
     var v = $('vid'), d = v.duration;
     $('tc').textContent = fmt(v.currentTime);
@@ -504,7 +622,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   function seek(d) { var v = $('vid'); try { v.currentTime = Math.max(0, Math.min(v.duration || 1e9, v.currentTime + d)); } catch (e) {} flashBar(); }
   function toggle() { var v = $('vid'); if (v.paused) { S.userPause = false; try { v.play(); } catch (e) {} } else { S.userPause = true; v.pause(); } flashBar(); }
   function closePlayer() {
-    saveNow(); stopV(); S.playing = false; S.p0 = null; $('player').style.display = 'none';
+    saveNow(); stopWd(); stopV(); S.playing = false; S.p0 = null; $('player').style.display = 'none';
     if (S.sc && S.sc.refresh) { S.sc.refresh(); S.sc.i = Math.min(S.sc.i, S.sc.items.length - 1); }
     show();
   }
