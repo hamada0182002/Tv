@@ -15,7 +15,10 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 #app{display:none;position:absolute;top:0;left:0;right:0;bottom:0}
 #cats{position:absolute;top:0;right:0;bottom:0;width:28%;overflow:hidden;background:#161d27}
 #chans{position:absolute;top:0;left:0;bottom:0;right:28%;overflow:hidden}
-.it{padding:14px 18px;font-size:26px;border-bottom:1px solid #222c39;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.it{height:56px;line-height:56px;padding:0 18px;box-sizing:border-box;font-size:26px;border-bottom:1px solid #222c39;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
+.it:hover{background:#34445a}
+.nv{text-align:center;background:#243041;color:#e8a317;font-weight:bold}
+.pb{display:inline-block;margin:0 14px;padding:6px 18px;background:#e8a317;color:#10151c;border-radius:8px;cursor:pointer;font-size:26px}
 .on{background:#2a3646}
 .sel{background:#e8a317;color:#10151c;font-weight:bold}
 #player{display:none;position:absolute;top:0;left:0;right:0;bottom:0;background:#000}
@@ -42,7 +45,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 
 <div id="player">
   <video id="vid" autoplay></video>
-  <div id="bar"></div>
+  <div id="bar"><span id="ttl"></span> <span class="pb" id="bk">رجوع</span><span class="pb" id="pv">▲ السابقة</span><span class="pb" id="nx">▼ التالية</span></div>
   <div id="status"></div>
 </div>
 
@@ -124,15 +127,41 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   }
 
   function rows(items, idx, nameFn, host, activeCol) {
-    var visible = Math.floor(window.innerHeight / ROW) - 1;
+    var visible = Math.floor(window.innerHeight / ROW) - 3;
+    if (visible < 3) visible = 3;
+    S.vis = visible;
     var start = Math.max(0, Math.min(idx - Math.floor(visible / 2), items.length - visible));
-    var end = Math.min(items.length, start + visible + 1);
-    var h = '';
+    var end = Math.min(items.length, start + visible);
+    var h = '<div class="it nv" data-k="u">▲ للأعلى</div>';
     for (var i = start; i < end; i++) {
       var cls = 'it' + (i === idx ? (activeCol ? ' sel' : ' on') : '');
-      h += '<div class="' + cls + '">' + nameFn(items[i]) + '</div>';
+      h += '<div class="' + cls + '" data-k="' + i + '">' + nameFn(items[i]) + '</div>';
     }
+    h += '<div class="it nv" data-k="d">▼ للأسفل</div>';
     host.innerHTML = h;
+  }
+
+  function pageCat(d) { S.ci = Math.max(0, Math.min(S.cats.length - 1, S.ci + d)); showCat(); drawCats(); }
+  function pageChan(d) { if (!S.list.length) return; S.chi = Math.max(0, Math.min(S.list.length - 1, S.chi + d)); drawChans(); }
+
+  function onList(col, e) {
+    var t = e.target;
+    while (t && !(t.getAttribute && t.getAttribute('data-k'))) t = t.parentNode;
+    if (!t) return;
+    var k = t.getAttribute('data-k'), step = Math.max(1, (S.vis || 8) - 1);
+    if (col === 0) {
+      if (k === 'u') pageCat(-step);
+      else if (k === 'd') pageCat(step);
+      else {
+        S.ci = parseInt(k, 10);
+        if (S.cats[S.ci].category_id === '__out') { logout(); return; }
+        S.col = 0; showCat(); drawCats();
+      }
+    } else {
+      if (k === 'u') pageChan(-step);
+      else if (k === 'd') pageChan(step);
+      else play(parseInt(k, 10));
+    }
   }
 
   function esc(t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;'); }
@@ -151,7 +180,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     stop();
     $('player').style.display = 'block';
     S.playing = true;
-    $('bar').textContent = s.name;
+    $('ttl').textContent = s.name;
     $('status').textContent = 'جاري التشغيل...';
     flashBar();
     if (window.Hls && Hls.isSupported()) {
@@ -199,8 +228,8 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     if ($('app').style.display !== 'block') { return; }
     if (S.playing) {
       if (isBack(k)) { closePlayer(); }
-      else if (k === 38 || k === 427) { play(Math.max(0, S.chi - 1)); }
-      else if (k === 40 || k === 428) { play(Math.min(S.list.length - 1, S.chi + 1)); }
+      else if (k === 38 || k === 427 || k === 33) { play(Math.max(0, S.chi - 1)); }
+      else if (k === 40 || k === 428 || k === 34) { play(Math.min(S.list.length - 1, S.chi + 1)); }
       else if (k === 13) { flashBar(); }
       else { return; }
       e.preventDefault();
@@ -225,6 +254,15 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     e.preventDefault();
   });
 
+  $('cats').onclick = function (e) { onList(0, e); };
+  $('chans').onclick = function (e) { onList(1, e); };
+  $('cats').onwheel = function (e) { pageCat(e.deltaY > 0 ? 3 : -3); if (e.preventDefault) e.preventDefault(); };
+  $('chans').onwheel = function (e) { pageChan(e.deltaY > 0 ? 3 : -3); if (e.preventDefault) e.preventDefault(); };
+  $('bk').onclick = closePlayer;
+  $('pv').onclick = function () { play(Math.max(0, S.chi - 1)); };
+  $('nx').onclick = function () { play(Math.min(S.list.length - 1, S.chi + 1)); };
+  $('player').onmousemove = flashBar;
+  $('vid').onclick = flashBar;
   $('go').onclick = login;
   document.addEventListener('keydown', function (e) {
     if (e.keyCode === 13 && $('login').style.display !== 'none' && $('app').style.display !== 'block') {
