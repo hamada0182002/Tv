@@ -23,6 +23,15 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 #sbox{margin:12% auto 0;width:60%}
 #sh{font-size:32px;margin-bottom:16px}
 #sq{width:100%;box-sizing:border-box;font-size:32px;padding:16px;border-radius:10px;border:3px solid #e8a317;background:#1a222d;color:#fff;margin-bottom:20px;text-align:right}
+.dt{display:flex;padding:18px 28px}
+.dp{width:26%;flex:none}
+.dp img{width:100%;border-radius:14px;display:block}
+.dx{flex:1;min-width:0;padding:0 28px}
+.dtt{font-size:36px;font-weight:bold;margin-bottom:8px}
+.dm{font-size:24px;color:#e8a317;margin-bottom:12px}
+.dd{font-size:22px;line-height:1.6;color:#d6dbe3;max-height:190px;overflow:hidden;margin-bottom:16px}
+.db .it{width:60%;border-radius:10px;margin-bottom:10px;background:rgba(255,255,255,.1)}
+.db .it.sel{background:#e8a317}
 #hbk{right:20px}#pu{left:20px}#pd2{left:96px}
 .it{height:56px;line-height:56px;padding:0 24px;box-sizing:border-box;font-size:28px;border-bottom:1px solid #222c39;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:pointer}
 .it:hover{background:#34445a}
@@ -54,7 +63,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 </div>
 
 <div id="app">
-  <div id="hdr"><span class="rb" id="hbk">→</span><span id="ttl2"></span><span class="rb" id="pu">▲</span><span class="rb" id="pd2">▼</span><span class="rb" id="sb">🔍</span></div>
+  <div id="hdr"><span class="rb" id="hbk">→</span><span id="ttl2"></span><span class="rb" id="pu"><svg viewBox="0 0 24 24" width="34" height="34" style="vertical-align:middle"><polyline points="5,16 12,8 19,16" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="rb" id="pd2"><svg viewBox="0 0 24 24" width="34" height="34" style="vertical-align:middle"><polyline points="5,8 12,16 19,8" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="rb" id="sb"><svg viewBox="0 0 24 24" width="34" height="34" style="vertical-align:middle"><circle cx="10" cy="10" r="6" fill="none" stroke="currentColor" stroke-width="2.6"/><line x1="15" y1="15" x2="21" y2="21" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg></span></div>
   <div id="srch"><div id="sbox"><div id="sh"></div><input id="sq" type="text" placeholder="اضغط هنا واكتب الاسم"><span class="pb" id="sgo">بحث</span><span class="pb" id="scn">إلغاء</span></div></div>
   <div id="list"></div>
 </div>
@@ -62,7 +71,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 <div id="player">
   <video id="vid" autoplay></video>
   <div id="bar"><span id="ttl"></span> <span id="tm"></span><br>
-    <span class="pb" id="bk">رجوع</span><span class="pb" id="pv">▲ السابقة</span><span class="pb" id="nx">▼ التالية</span><span class="pb" id="rw">⏪ 10</span><span class="pb" id="pp">⏯</span><span class="pb" id="ff">10 ⏩</span>
+    <span class="pb" id="bk">رجوع</span><span class="pb" id="pv">▲ السابقة</span><span class="pb" id="nx">▼ التالية</span><span class="pb" id="rw">− 10 ثواني</span><span class="pb" id="pp">تشغيل / إيقاف</span><span class="pb" id="ff">+ 10 ثواني</span>
   </div>
   <div id="status"></div>
 </div>
@@ -135,9 +144,9 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   /* ---------- screens ---------- */
   function home() {
     return { t: 'الرئيسية', i: 0, items: [
-      { l: '📺  مباشر', f: function () { openSec('live'); } },
-      { l: '🎬  أفلام', f: function () { openSec('vod'); } },
-      { l: '📼  مسلسلات', f: function () { openSec('series'); } },
+      { l: 'مباشر', f: function () { openSec('live'); } },
+      { l: 'أفلام', f: function () { openSec('vod'); } },
+      { l: 'مسلسلات', f: function () { openSec('series'); } },
       { l: '▶  متابعة المشاهدة', f: function () { push(contScreen()); } },
       { l: 'تغيير الحساب', f: logout }
     ] };
@@ -155,7 +164,13 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     hdr(S.stack.map(function (x) { return x.t; }).join(' › '));
     S.hovEl = null;
     $('sb').style.display = sc.sec ? 'block' : 'none';
-    if (sc.grid) {
+    if (sc.detail) {
+      var d = sc.d;
+      h = '<div class="dt"><div class="dp">' + (d.img ? '<img referrerpolicy="no-referrer" onerror="imgErr(this)" src="' + esc(d.img).replace(/"/g, '%22') + '">' : '') + '</div><div class="dx"><div class="dtt">' + esc(d.title) + '</div><div class="dm">' + esc(d.meta) + '</div><div class="dd">' + esc(d.plot === undefined ? 'جاري تحميل القصة...' : (d.plot || 'مفيش وصف متاح')) + '</div><div class="db">';
+      for (i = 0; i < items.length; i++) h += '<div class="it' + (i === sc.i ? ' sel' : '') + '" data-k="' + i + '">' + esc(items[i].l) + '</div>';
+      h += '</div></div></div>';
+      $('list').className = '';
+    } else if (sc.grid) {
       var g = 14, cols = Math.max(3, Math.min(8, Math.floor((W - 40) / 175)));
       var cw = Math.floor((W - 40) / cols) - g, ph = Math.round(cw * 1.42), ch = ph + 44 + g;
       var rv = Math.max(1, Math.floor((H - 100) / ch));
@@ -239,29 +254,59 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     var base = S.base + '/', cr = '/' + enc(S.u) + '/' + enc(S.p) + '/';
     var items = src.map(function (s) {
       if (sec === 'live') return { l: s.name, img: s.stream_icon, p: { type: 'l', key: 'l' + s.stream_id, title: s.name, url: base + 'live' + cr + s.stream_id + '.m3u8', live: true } };
-      if (sec === 'vod') return { l: s.name, img: s.stream_icon, sub: s.rating && s.rating !== '0' ? 'التقييم: ' + s.rating : '', p: { type: 'm', img: s.stream_icon, key: 'm' + s.stream_id, title: s.name, url: base + 'movie' + cr + s.stream_id + '.' + (s.container_extension || 'mp4'), vod: true } };
+      if (sec === 'vod') return { l: s.name, img: s.stream_icon, f: function () { openMovie(s); } };
       return { l: s.name, img: s.cover, sub: String(s.plot || '').slice(0, 400), f: function () { openSeries(s); } };
     });
     if (!items.length) items = [{ l: 'مفيش حاجة هنا', f: function () {} }];
     return { t: title, i: 0, items: items, grid: sec !== 'live', sec: sec };
   }
+  function meta(r, y, g, du) {
+    var a = [];
+    if (r && parseFloat(r) > 0) a.push('التقييم: ' + r + '/10');
+    if (y) a.push(String(y).slice(0, 4));
+    if (g) a.push(g);
+    if (du) a.push(du);
+    return a.join('   |   ');
+  }
+  function openMovie(s) {
+    var p = { type: 'm', img: s.stream_icon, key: 'm' + s.stream_id, title: s.name, url: S.base + '/movie/' + enc(S.u) + '/' + enc(S.p) + '/' + s.stream_id + '.' + (s.container_extension || 'mp4'), vod: true };
+    var sc = { t: s.name, i: 0, detail: true, d: { img: s.stream_icon, title: s.name, meta: meta(s.rating) }, items: [] };
+    sc.refresh = function () {
+      var pr = prog()[p.key], it = [], q = {}, k;
+      if (pr && pr.pos > 15) it.push({ l: 'كمّل من ' + fmt(pr.pos), p: p });
+      for (k in p) q[k] = p[k];
+      q.nr = true;
+      it.push({ l: pr && pr.pos > 15 ? 'تشغيل من البداية' : 'تشغيل', p: q });
+      sc.items = it;
+    };
+    sc.refresh();
+    push(sc);
+    api('get_vod_info&vod_id=' + s.stream_id, function (e, d) {
+      var i = (d && d.info) || {};
+      sc.d.plot = i.plot || i.description || '';
+      sc.d.meta = meta(i.rating || s.rating, i.releasedate || i.release_date || i.year, i.genre, i.duration);
+      if (!sc.d.img && i.movie_image) sc.d.img = i.movie_image;
+      if (S.sc === sc) show();
+    });
+  }
   function openSeries(s) {
     hdr('جاري التحميل...');
     api('get_series_info&series_id=' + s.series_id, function (e, d) {
       if (e) { hdr(explain(e)); return; }
-      var eps = (d && d.episodes) || {};
+      var eps = (d && d.episodes) || {}, i = (d && d.info) || {};
       var ks = Object.keys(eps).sort(function (a, b) { return a - b; });
       if (!ks.length) { hdr('مفيش حلقات للمسلسل ده'); return; }
       function epScreen(k) {
         return { t: 'الموسم ' + k, i: 0, items: arr(eps[k]).map(function (x) {
           var im = (x.info && x.info.movie_image) || s.cover;
-          return { l: (x.episode_num || '') + ' - ' + (x.title || 'حلقة'), img: im, sub: String((x.info && x.info.plot) || s.plot || '').slice(0, 400), p: { type: 'e', img: im, key: 'e' + x.id, title: s.name + ' - م' + k + ' ح' + (x.episode_num || ''), url: S.base + '/series/' + enc(S.u) + '/' + enc(S.p) + '/' + x.id + '.' + (x.container_extension || 'mp4'), vod: true } };
+          return { l: (x.episode_num || '') + ' - ' + (x.title || 'حلقة'), img: im, p: { type: 'e', img: im, key: 'e' + x.id, title: s.name + ' - م' + k + ' ح' + (x.episode_num || ''), url: S.base + '/series/' + enc(S.u) + '/' + enc(S.p) + '/' + x.id + '.' + (x.container_extension || 'mp4'), vod: true } };
         }) };
       }
-      if (ks.length === 1) { var one = epScreen(ks[0]); one.t = s.name; push(one); return; }
-      push({ t: s.name, i: 0, items: ks.map(function (k) {
-        return { l: 'الموسم ' + k + ' (' + arr(eps[k]).length + ' حلقة)', f: function () { push(epScreen(k)); } };
-      }) });
+      var items = ks.map(function (k) {
+        var n = arr(eps[k]).length;
+        return { l: ks.length === 1 ? 'الحلقات (' + n + ')' : 'الموسم ' + k + ' (' + n + ' حلقة)', f: function () { push(epScreen(k)); } };
+      });
+      push({ t: s.name, i: 0, detail: true, items: items, d: { img: i.cover || s.cover, title: s.name, meta: meta(i.rating || s.rating, i.releaseDate || i.releasedate || s.releaseDate, i.genre), plot: i.plot || s.plot || '' } });
     });
   }
   function contScreen() {
@@ -300,13 +345,16 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     var v = $('vid');
     stopV();
     S.p0 = p; S.pi = i; S.pl = S.sc.items; S.playing = true;
-    var pr = prog()[p.key], resume = (pr && pr.pos > 15) ? pr.pos - 3 : 0;
+    var pr = prog()[p.key], resume = (!p.nr && pr && pr.pos > 15) ? pr.pos - 3 : 0;
     $('player').style.display = 'block';
     $('ttl').textContent = p.title;
     $('tm').textContent = '';
     $('status').style.display = 'block';
     $('status').textContent = resume ? 'جاري التشغيل... هيكمل من ' + fmt(resume) : 'جاري التشغيل...';
-    ['pv', 'nx'].forEach(function (id) { $(id).style.display = p.live ? 'inline-block' : 'none'; });
+    var ep = p.type === 'e';
+    ['pv', 'nx'].forEach(function (id) { $(id).style.display = (p.live || ep) ? 'inline-block' : 'none'; });
+    $('pv').textContent = ep ? 'الحلقة السابقة' : 'السابقة';
+    $('nx').textContent = ep ? 'الحلقة التالية' : 'التالية';
     ['rw', 'ff', 'pp'].forEach(function (id) { $(id).style.display = p.vod ? 'inline-block' : 'none'; });
     v.onplaying = function () { $('status').style.display = 'none'; };
     v.onerror = function () { $('status').style.display = 'block'; $('status').textContent = 'مش شغال. ممكن القناة واقفة أو الشاشة مش بتدعم صيغة الفيديو (' + (p.url.split('.').pop()) + ')'; };
@@ -317,7 +365,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       var n = Date.now();
       if (n - S.sv > 5000) { S.sv = n; saveNow(); }
     };
-    v.onended = function () { saveNow(); closePlayer(); };
+    v.onended = function () { saveNow(); if (p.type === 'e' && S.pl[S.pi + 1] && S.pl[S.pi + 1].p) zap(1); else closePlayer(); };
     if (p.live && window.Hls && Hls.isSupported()) {
       S.hls = new Hls({ lowLatencyMode: false });
       S.hls.on(Hls.Events.ERROR, function (ev, d) { if (d && d.fatal) { $('status').style.display = 'block'; $('status').textContent = 'القناة مش شغالة أو السيرفر رفض البث'; } });
@@ -337,7 +385,11 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   }
   function seek(d) { var v = $('vid'); try { v.currentTime = Math.max(0, Math.min(v.duration || 1e9, v.currentTime + d)); } catch (e) {} flashBar(); }
   function toggle() { var v = $('vid'); if (v.paused) { try { v.play(); } catch (e) {} } else { v.pause(); } flashBar(); }
-  function closePlayer() { saveNow(); stopV(); S.playing = false; S.p0 = null; $('player').style.display = 'none'; show(); }
+  function closePlayer() {
+    saveNow(); stopV(); S.playing = false; S.p0 = null; $('player').style.display = 'none';
+    if (S.sc && S.sc.refresh) { S.sc.refresh(); S.sc.i = Math.min(S.sc.i, S.sc.items.length - 1); }
+    show();
+  }
   function once(fn) { return function () { if (Date.now() - S.lastAct < 400) return; S.lastAct = Date.now(); fn(); }; }
 
   /* ---------- input ---------- */
@@ -356,8 +408,10 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     var p = S.p0;
     if (S.playing) {
       if (isBack(k)) closePlayer();
-      else if (k === 38 || k === 427 || k === 33) { if (p.live) zap(-1); else seek(-60); }
-      else if (k === 40 || k === 428 || k === 34) { if (p.live) zap(1); else seek(60); }
+      else if (k === 427 || k === 33) { if (p.live || p.type === 'e') zap(-1); else seek(-60); }
+      else if (k === 428 || k === 34) { if (p.live || p.type === 'e') zap(1); else seek(60); }
+      else if (k === 38) { if (p.live) zap(-1); else seek(-60); }
+      else if (k === 40) { if (p.live) zap(1); else seek(60); }
       else if (k === 37) { if (p.vod) seek(-10); else flashBar(); }
       else if (k === 39) { if (p.vod) seek(10); else flashBar(); }
       else if (k === 13) {
@@ -381,7 +435,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       else {
         var h = hv;
         while (h && !(h.getAttribute && h.getAttribute('data-k'))) h = h.parentNode;
-        if (k === 13 && h && h.parentNode && h.parentNode.id === 'list') listClick(h.getAttribute('data-k'));
+        if (k === 13 && h && $('list').contains(h)) listClick(h.getAttribute('data-k'));
         else pick(S.sc.i);
       }
     } else return;
