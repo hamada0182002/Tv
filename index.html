@@ -87,6 +87,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 .sr.sel{background:linear-gradient(135deg,rgba(34,211,238,.38),rgba(34,211,238,.12));border:2px solid #22d3ee;box-shadow:0 0 22px rgba(34,211,238,.35);color:#fff;line-height:46px}
 #bgrid{flex:1;padding-left:20px}
 #bgrid .nm{direction:rtl}
+.hc.sm{flex-direction:row}.hc.sm .hn{margin:0 16px;font-size:26px}.hc.sm .hs{margin:0}
 #hint{display:none;position:absolute;bottom:14px;left:50%;transform:translateX(-50%);padding:8px 28px;border-radius:999px;font-size:20px;white-space:nowrap}
 #bar{display:none;position:absolute;top:0;left:0;right:0;padding:24px 40px;font-size:26px;background:linear-gradient(rgba(0,0,0,.65),transparent);align-items:center;justify-content:space-between}
 .bt{padding:10px 24px;border-radius:999px;font-size:24px;margin:0 8px;display:inline-block;cursor:pointer}
@@ -121,7 +122,6 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   <div id="srch"><div id="sbox"><div id="sh"></div><input id="sq" type="text" placeholder="اضغط هنا واكتب الاسم"><span class="pb" id="sgo">بحث</span><span class="pb" id="scn">إلغاء</span></div></div>
   <div id="rsm"><div id="rbox"><div id="rtt"></div><div id="rq"></div><div class="it" id="rb1"></div><div class="it" id="rb2">تشغيل من البداية</div></div></div>
   <div id="list"></div>
-  <div id="hint" class="gl">2 / 8 تصفح &nbsp;&nbsp; 4 / 6 تنقل &nbsp;&nbsp; 5 فتح &nbsp;&nbsp; 0 رجوع</div>
 </div>
 
 <div id="player">
@@ -229,7 +229,6 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       { l: 'أفلام', f: function () { openSec('vod'); } },
       { l: 'مسلسلات', f: function () { openSec('series'); } },
       { l: 'متابعة المشاهدة', f: function () { push(contScreen()); } },
-      { l: 'بحث شامل', f: openSrch },
       { l: 'الحساب والتحديث', f: function () { push(accountScreen()); } }
     ] };
   }
@@ -247,23 +246,24 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     S.hovEl = null;
     $('sb').style.display = sc.sec ? 'block' : 'none';
     if (sc.tiles) {
-      S.cols = 6; S.rv = 1;
-      var ic = function (d) { return '<svg viewBox="0 0 64 64" width="84" height="84" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>'; };
+      S.cols = 3; S.rv = 2;
+      var ic = function (d, z) { return '<svg viewBox="0 0 64 64" width="' + z + '" height="' + z + '" fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round">' + d + '</svg>'; };
       var ics = [
-        ic('<rect x="8" y="22" width="48" height="34" rx="6"/><polyline points="22,8 32,18 42,8"/><polygon points="28,32 28,48 42,40" fill="#fff"/>'),
-        ic('<rect x="8" y="26" width="48" height="30" rx="3"/><polygon points="8,12 56,12 56,22 8,22"/><polygon points="26,34 26,50 40,42" fill="#fff"/>'),
-        ic('<rect x="16" y="20" width="40" height="30" rx="4"/><path d="M8 28v22a4 4 0 0 0 4 4h34"/><polygon points="31,28 31,42 42,35" fill="#fff"/>'),
-        ic('<circle cx="32" cy="32" r="22"/><polygon points="26,21 26,43 45,32" fill="#fff"/>'),
-        ic('<circle cx="28" cy="28" r="14"/><line x1="38" y1="38" x2="54" y2="54"/>'),
-        ic('<circle cx="32" cy="24" r="10"/><path d="M12 54c2-12 10-18 20-18s18 6 20 18"/>')
+        ic('<rect x="8" y="22" width="48" height="34" rx="6"/><polyline points="22,8 32,18 42,8"/><polygon points="28,32 28,48 42,40" fill="#fff"/>', 120),
+        ic('<rect x="8" y="26" width="48" height="30" rx="3"/><polygon points="8,12 56,12 56,22 8,22"/><polygon points="26,34 26,50 40,42" fill="#fff"/>', 120),
+        ic('<rect x="16" y="20" width="40" height="30" rx="4"/><path d="M8 28v22a4 4 0 0 0 4 4h34"/><polygon points="31,28 31,42 42,35" fill="#fff"/>', 120),
+        ic('<circle cx="32" cy="32" r="22"/><polygon points="26,21 26,43 45,32" fill="#fff"/>', 64),
+        ic('<circle cx="32" cy="24" r="10"/><path d="M12 54c2-12 10-18 20-18s18 6 20 18"/>', 64)
       ];
-      var cnts = [S.cache.live ? S.cache.live.all.length + ' قناة' : '', S.cache.vod ? S.cache.vod.all.length + ' فيلم' : '', S.cache.series ? S.cache.series.all.length + ' مسلسل' : '', '', '', ''];
+      var cnts = [S.cache.live ? S.cache.live.all.length + ' قناة' : '', S.cache.vod ? S.cache.vod.all.length + ' فيلم' : '', S.cache.series ? S.cache.series.all.length + ' مسلسل' : '', '', ''];
       var P0 = prog(), nc = 0, pk;
       for (pk in P0) { if (P0.hasOwnProperty(pk) && !P0[pk].done) nc++; }
       if (nc) cnts[3] = nc + ' عنصر';
-      h = '<div class="tr" style="height:' + (H - 200) + 'px;margin-top:22px">';
-      for (i = 0; i < items.length; i++) h += '<div class="hc gl' + (i === sc.i ? ' on' : '') + '" data-k="' + i + '">' + ics[i] + '<div class="hn">' + esc(items[i].l) + '</div><div class="hs">' + esc(cnts[i]) + '</div></div>';
-      h += '</div><div class="ex">' + esc(expTxt()) + '</div>';
+      var av = H - 80 - 70;
+      var card = function (n) { return '<div class="hc gl' + (n > 2 ? ' sm' : '') + (n === sc.i ? ' on' : '') + '" data-k="' + n + '">' + ics[n] + '<div class="hn">' + esc(items[n].l) + '</div><div class="hs">' + esc(cnts[n]) + '</div></div>'; };
+      h = '<div class="tr" style="height:' + Math.floor(av * 0.62) + 'px;margin-top:20px">' + card(0) + card(1) + card(2) + '</div>' +
+          '<div class="tr" style="height:' + Math.floor(av * 0.26) + 'px">' + card(3) + card(4) + '</div>' +
+          '<div class="ex">' + esc(expTxt()) + '</div>';
       hdr(clk());
       $('list').className = '';
     } else if (sc.detail) {
@@ -314,15 +314,15 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       $('list').className = '';
     }
     $('list').innerHTML = h;
-    $('hint').style.display = (sc.tiles || sc.browse) ? 'block' : 'none';
   }
   function move(d) {
     var n = S.sc.items.length;
     if (!n) return;
     if (S.sc.tiles) {
       var t = S.sc.i + d;
+      if (d === 3 && t >= n && t < n + 3) t = n - 1;
       if (t < 0 || t >= n) return;
-      if ((d === 1 || d === -1) && Math.floor(t / 6) !== Math.floor(S.sc.i / 6)) return;
+      if ((d === 1 || d === -1) && Math.floor(t / 3) !== Math.floor(S.sc.i / 3)) return;
     }
     S.sc.i = Math.max(0, Math.min(n - 1, S.sc.i + d));
     show();
@@ -602,7 +602,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     ['pv', 'nx'].forEach(function (id) { $(id).style.display = (p.live || ep) ? 'inline-block' : 'none'; });
     $('pv').textContent = ep ? 'الحلقة السابقة' : 'السابقة';
     $('nx').textContent = ep ? 'الحلقة التالية' : 'التالية';
-    ['rw', 'ff', 'pp'].forEach(function (id) { $(id).style.display = p.vod ? 'inline-block' : 'none'; });
+    ['rw', 'ff', 'pp'].forEach(function (id) { $(id).style.display = p.vod ? 'flex' : 'none'; });
     v.onplaying = function () { S.userPause = false; S.played = true; clearTimeout(S.waitT); $('status').style.display = 'none'; };
     v.onwaiting = function () {
       clearTimeout(S.waitT);
@@ -748,6 +748,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     $('pfill').style.width = (d && !isNaN(d) && d !== Infinity) ? Math.min(100, v.currentTime * 100 / d) + '%' : '0%';
   }
   function unk(c) {
+    if (c === 16 || c === 17 || c === 18 || c === 91 || c === 93) return;
     var st = $('status');
     st.style.display = 'block';
     st.textContent = 'زر غير معروف: ' + c;
