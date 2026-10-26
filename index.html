@@ -611,7 +611,11 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     v.onpause = function () { if (S.userPause && S.playing) { $('status').style.display = 'block'; $('status').textContent = 'متوقف مؤقتاً'; } };
     v.onerror = function () {
       if (!v.getAttribute('src') || S.rcT || !S.playing) return;
-      if (!S.played && !p.live && S.rc >= 3) { msg('مش شغال. ممكن الشاشة مش بتدعم صيغة الفيديو (' + (p.url.split('.').pop()) + ')'); return; }
+      if (!S.played && p.vod) {
+        if (location.protocol === 'https:' && p.url.indexOf('http:') === 0) msg('المتصفح بيمنع الفيديو لأن الصفحة https والسيرفر http. جرّبه من الشاشة.');
+        else msg('الفيلم مش شغال (كود ' + (v.error ? v.error.code : '?') + '). ممكن الملف معطّل عند المزوّد أو صيغته (' + p.url.split('.').pop() + ') مش مدعومة.');
+        return;
+      }
       reconnect('error');
     };
     v.onloadedmetadata = function () { if (S.resume) { try { v.currentTime = S.resume; } catch (e) {} S.resume = 0; } };
@@ -729,11 +733,11 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     var ct = v.currentTime, f = frames(v, w, now);
     if (Math.abs(ct - w.time) > 0.05) { w.tt = now; w.time = ct; }
     if (f.n < 0 || f.n !== w.fr) { w.tf = now; w.fr = f.n; }
-    var lim = (!S.played || v.seeking) ? 25000 : (p.live ? 10000 : 15000);
+    var lim = p.vod ? ((!S.played || v.seeking) ? 90000 : 60000) : ((!S.played || v.seeking) ? 25000 : 10000);
     // 1) كل حاجة واقفة (صوت وصورة): السيرفر مش بيبعت
     if (now - w.tt > lim) { w.tt = w.tf = w.bad = now; reconnect('stall'); return; }
     // 2) الصوت شغال والصورة ثابتة
-    if (f.n >= 0 && hasVideo(v) && now - w.tt < 2500 && now - w.tf > f.ms && v.readyState >= 2) {
+    if (p.live && f.n >= 0 && hasVideo(v) && now - w.tt < 2500 && now - w.tf > f.ms && v.readyState >= 2) {
       w.tf = w.bad = now;
       if (S.vfix++ === 0 && S.hls && S.hls.liveSyncPosition) {
         msg('الصورة واقفة... بنط لآخر البث');
