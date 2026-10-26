@@ -612,8 +612,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     v.onerror = function () {
       if (!v.getAttribute('src') || S.rcT || !S.playing) return;
       if (!S.played && p.vod) {
-        if (location.protocol === 'https:' && p.url.indexOf('http:') === 0) msg('المتصفح بيمنع الفيديو لأن الصفحة https والسيرفر http. جرّبه من الشاشة.');
-        else msg('الفيلم مش شغال (كود ' + (v.error ? v.error.code : '?') + '). ممكن الملف معطّل عند المزوّد أو صيغته (' + p.url.split('.').pop() + ') مش مدعومة.');
+        msg('الفيلم مش شغال (كود ' + (v.error ? v.error.code : '?') + '). غالباً عدد الأجهزة المسموح بيها في اشتراكك اتملى (اقفل أي حاجة شغالة على الشاشة واستنى دقيقة)، أو الملف معطّل، أو صيغته (' + p.url.split('.').pop() + ') مش مدعومة.');
         return;
       }
       reconnect('error');
@@ -682,10 +681,6 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   function reconnect(why, delay) {
     var v = $('vid'), p = S.p0;
     if (!p || !S.playing || S.rcT || S.asking) return;
-    if (!S.played && location.protocol === 'https:' && p.url.indexOf('http:') === 0) {
-      msg('المتصفح بيمنع الفيديو لأن الصفحة https والسيرفر http. جرّبه من الشاشة أو افتح الملف من الكمبيوتر مباشرة.');
-      return;
-    }
     S.rc++;
     if (p.vod && v.currentTime > 5) S.resume = Math.max(0, v.currentTime - 3);
     var wait = delay !== undefined ? delay : Math.min(1500 * S.rc, 15000);
