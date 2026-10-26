@@ -678,10 +678,14 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
   function reconnect(why, delay) {
     var v = $('vid'), p = S.p0;
     if (!p || !S.playing || S.rcT || S.asking) return;
+    if (!S.played && location.protocol === 'https:' && p.url.indexOf('http:') === 0) {
+      msg('المتصفح بيمنع الفيديو لأن الصفحة https والسيرفر http. جرّبه من الشاشة أو افتح الملف من الكمبيوتر مباشرة.');
+      return;
+    }
     S.rc++;
     if (p.vod && v.currentTime > 5) S.resume = Math.max(0, v.currentTime - 3);
     var wait = delay !== undefined ? delay : Math.min(1500 * S.rc, 15000);
-    msg(why === 'freeze' ? 'الصورة واقفة... بصلّح' : 'انقطع البث... بعيد الاتصال تلقائياً (محاولة ' + S.rc + ')');
+    msg(why === 'freeze' ? 'الصورة واقفة... بصلّح' : 'انقطع البث... بعيد الاتصال تلقائياً (محاولة ' + S.rc + ')' + (v.error ? ' [كود ' + v.error.code + ']' : ''));
     S.rcT = setTimeout(function () {
       S.rcT = 0;
       if (S.p0 === p && S.playing) { S.w = null; startStream(p); if (S.w) { S.w.bad = Date.now(); } }
