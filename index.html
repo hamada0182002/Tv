@@ -85,7 +85,10 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
 .sr b{font-weight:normal;font-size:18px;background:rgba(255,255,255,.12);border-radius:10px;padding:0 10px;line-height:30px;margin-top:10px}
 .sr.on{background:rgba(255,255,255,.1)}
 .sr.sel{background:linear-gradient(135deg,rgba(34,211,238,.38),rgba(34,211,238,.12));border:2px solid #22d3ee;box-shadow:0 0 22px rgba(34,211,238,.35);color:#fff;line-height:46px}
-#bgrid{flex:1;padding-left:20px}
+#bgrid{flex:1;min-width:0;padding-left:20px;box-sizing:border-box;overflow:hidden}
+.gr{white-space:nowrap;font-size:0}
+#bside .scn{height:34px;line-height:34px;text-align:center;font-size:18px;color:#9fb6cc;direction:ltr}
+.gpi{position:absolute;bottom:10px;right:30px;padding:4px 18px;border-radius:999px;font-size:20px;background:rgba(20,28,40,.8);color:#cfe0ef;direction:ltr}
 #bgrid .nm{direction:rtl}
 .hc.sm{flex-direction:row}.hc.sm .hn{margin:0 16px;font-size:26px}.hc.sm .hs{margin:0}
 #hint{display:none;position:absolute;bottom:14px;left:50%;transform:translateX(-50%);padding:8px 28px;border-radius:999px;font-size:20px;white-space:nowrap}
@@ -273,34 +276,49 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
       h += '</div></div></div>';
       $('list').className = '';
     } else if (sc.browse) {
-      var SW = Math.round(W * 0.23), rowsV = Math.max(3, Math.floor((H - 160) / 58));
+      var SW = Math.round(W * 0.23), rowsV = Math.max(3, Math.floor((H - 200) / 58));
       var st0 = Math.max(0, Math.min(sc.ci - Math.floor(rowsV / 2), sc.cats.length - rowsV)), sd = '';
       for (i = st0; i < Math.min(sc.cats.length, st0 + rowsV); i++) sd += '<div class="sr' + (i === sc.ci ? (sc.col === 0 ? ' sel' : ' on') : '') + '" data-c="' + i + '"><span>' + esc(sc.cats[i].name) + '</span><b>' + sc.cats[i].n + '</b></div>';
-      var g2 = 12, cols2 = 6, gw = W - SW - 80, cw2 = Math.floor(gw / cols2) - g2, rv2 = 2;
+      sd += '<div class="scn">' + (st0 > 0 ? '▲ ' : '') + (sc.ci + 1) + ' / ' + sc.cats.length + (st0 + rowsV < sc.cats.length ? ' ▼' : '') + '</div>';
+      var g2 = 12, cols2 = 6, gw = W - SW - 48 - 14 - 20 - 8, cw2 = Math.floor(gw / cols2) - g2, rv2 = 2;
       var ph2 = Math.floor((H - 170) / rv2) - 40 - g2;
       ph2 = Math.max(cw2, Math.min(ph2, Math.round(cw2 * 1.5)));
       S.cols = cols2; S.rv = rv2;
-      var a2 = Math.floor(Math.floor(sc.i / cols2) / rv2) * rv2 * cols2, z2 = Math.min(items.length, a2 + rv2 * cols2), gd = '';
+      var tr2 = Math.ceil(items.length / cols2), r2 = Math.floor(sc.i / cols2);
+      if (sc.top === undefined) sc.top = 0;
+      if (r2 < sc.top) sc.top = r2; else if (r2 > sc.top + rv2 - 1) sc.top = r2 - rv2 + 1;
+      sc.top = Math.max(0, Math.min(sc.top, Math.max(0, tr2 - rv2)));
+      var a2 = sc.top * cols2, z2 = Math.min(items.length, a2 + rv2 * cols2), gd = '';
       for (i = a2; i < z2; i++) {
         var it2 = items[i];
+        if ((i - a2) % cols2 === 0) gd += '<div class="gr">';
         gd += '<div class="cd" data-k="' + i + '" style="width:' + cw2 + 'px;margin:0 ' + (g2 / 2) + 'px ' + g2 + 'px"><div class="pst' + (i === sc.i && sc.col === 1 ? ' on' : '') + '" style="height:' + ph2 + 'px">' +
           (it2.img ? '<img referrerpolicy="no-referrer" onerror="imgErr(this)" src="' + esc(it2.img).replace(/"/g, '%22') + '">' : '') + pbar(PG[ikey(it2)]) + '</div><div class="nm">' + esc(it2.l) + '</div></div>';
+        if ((i - a2) % cols2 === cols2 - 1 || i === z2 - 1) gd += '</div>';
       }
+      gd += '<div class="gpi">' + (items.length ? (sc.i + 1) + ' / ' + items.length : '0') + '</div>';
       h = '<div id="bside" style="width:' + SW + 'px">' + sd + '</div><div id="bgrid">' + gd + '</div>';
       $('list').className = 'browse';
     } else if (sc.grid) {
       var g = 14, cols = 6;
-      var cw = Math.floor((W - 72) / cols) - g, rv = 2;
+      var cw = Math.floor((W - 72 - 8) / cols) - g, rv = 2;
       var ph = Math.floor((H - 100) / rv) - 44 - g;
       ph = Math.max(cw, Math.min(ph, Math.round(cw * 1.5)));
       S.cols = cols; S.rv = rv;
-      var a = Math.floor(Math.floor(sc.i / cols) / rv) * rv * cols, z = Math.min(items.length, a + rv * cols);
+      var tr = Math.ceil(items.length / cols), r1 = Math.floor(sc.i / cols);
+      if (sc.top === undefined) sc.top = 0;
+      if (r1 < sc.top) sc.top = r1; else if (r1 > sc.top + rv - 1) sc.top = r1 - rv + 1;
+      sc.top = Math.max(0, Math.min(sc.top, Math.max(0, tr - rv)));
+      var a = sc.top * cols, z = Math.min(items.length, a + rv * cols);
       for (i = a; i < z; i++) {
         var it = items[i];
+        if ((i - a) % cols === 0) h += '<div class="gr">';
         h += '<div class="cd" data-k="' + i + '" style="width:' + cw + 'px;margin:0 ' + (g / 2) + 'px ' + g + 'px"><div class="pst' + (i === sc.i ? ' on' : '') + '" style="height:' + ph + 'px">' +
           (it.img ? '<img referrerpolicy="no-referrer" onerror="imgErr(this)" src="' + esc(it.img).replace(/"/g, '%22') + '">' : '') +
           pbar(PG[ikey(it)]) + (it.badge ? '<div class="bdg">' + esc(it.badge) + '</div>' : '') + '</div><div class="nm">' + esc(it.l) + '</div></div>';
+        if ((i - a) % cols === cols - 1 || i === z - 1) h += '</div>';
       }
+      h += '<div class="gpi">' + (items.length ? (sc.i + 1) + ' / ' + items.length : '0') + '</div>';
       $('list').className = 'grid';
     } else {
       S.vis = Math.max(3, Math.floor((H - 90) / ROW) - 2);
@@ -390,7 +408,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     var ct = sc.cats[sc.ci];
     if (!ct.items) ct.items = listScreen(sc.sec, sc.c, ct.id, '').items;
     sc.items = ct.items;
-    sc.i = 0;
+    sc.i = 0; sc.top = 0;
     show();
   }
   function openSec(sec) {
@@ -835,7 +853,7 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
         else if (k === 33) { selCat(bs, bs.ci - 8); }
         else if (k === 34) { selCat(bs, bs.ci + 8); }
         else if (k === 39 || k === 13) { if (bn) { bs.col = 1; show(); } }
-        else if (k === 37 || isBack(k)) back();
+        else if (isBack(k)) back();
         else return;
       } else {
         if (k === 37) { if (bs.i % bc === 0) bs.col = 0; else bs.i--; }
@@ -892,7 +910,14 @@ html,body{margin:0;height:100%;background:#10151c;color:#eef2f6;font-family:Taho
     if (c && S.sc.browse) { S.sc.col = 0; selCat(S.sc, parseInt(c, 10)); return; }
     listClick(t.getAttribute('data-k'));
   };
-    $('list').onwheel = function (e) { var st = S.sc.grid ? S.cols : 3; move(e.deltaY > 0 ? st : -st); if (e.preventDefault) e.preventDefault(); };
+    $('list').onwheel = function (e) {
+    var dn = e.deltaY > 0, t = e.target;
+    if (S.sc.browse) {
+      while (t && t !== $('list') && t.id !== 'bside') t = t.parentNode;
+      if (t && t.id === 'bside') { selCat(S.sc, S.sc.ci + (dn ? 1 : -1)); if (e.preventDefault) e.preventDefault(); return; }
+    }
+    var st = S.sc.grid ? S.cols : 3; move(dn ? st : -st); if (e.preventDefault) e.preventDefault();
+  };
   document.onmouseover = function (e) {
     var t = e.target;
     while (t && t.parentNode && String(t.className).indexOf('pb') < 0 && !(t.getAttribute && (t.getAttribute('data-k') || t.getAttribute('data-c')))) t = t.parentNode;
